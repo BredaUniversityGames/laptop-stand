@@ -254,6 +254,12 @@ button.primary {
   border-color: var(--accent);
 }
 
+button small {
+  font-weight: 400;
+  opacity: 0.8;
+  margin-left: 4px;
+}
+
 button:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;

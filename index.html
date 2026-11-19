@@ -17,7 +17,7 @@
   <aside class="rail">
     <div>
       <h1>Laptop Stand Maker</h1>
-      <p class="sub">Triangle side supports, printed flat. Units in mm.</p>
+      <p class="sub">Side supports, printed flat. Units in mm.</p>
     </div>
 
     <fieldset>
@@ -25,43 +25,47 @@
       <div class="toggles"><label for="preset">Model <select id="preset"></select></label></div>
       <div class="row"><label for="lapD">Depth <small>front to back</small></label><input type="range" id="lapD-r"><div class="num"><input id="lapD" inputmode="decimal"><span>mm</span></div></div>
       <div class="row"><label for="lapW">Width <small>side to side</small></label><input type="range" id="lapW-r"><div class="num"><input id="lapW" inputmode="decimal"><span>mm</span></div></div>
-      <div class="row"><label for="lapT">Front edge thickness <small>lid closed</small></label><input type="range" id="lapT-r"><div class="num"><input id="lapT" inputmode="decimal"><span>mm</span></div></div>
+      <div class="row"><label for="lapB">Base thickness <small>lid open, at the front</small></label><input type="range" id="lapB-r"><div class="num"><input id="lapB" inputmode="decimal"><span>mm</span></div></div>
       <div class="toggles"><label for="use">Use <select id="use">
-        <option value="10">Mostly typing · 10°</option>
-        <option value="15" selected>Balanced · 15°</option>
-        <option value="25">Raised screen · 25°</option>
+        <option value="30">Raised screen · 30°</option>
+        <option value="45" selected>Upright · 45°</option>
+        <option value="60">Display stand · 60°</option>
         <option value="custom" hidden>Custom angle</option>
       </select></label></div>
-      <p class="hint">Model sizes are approximate, so measure yours if you can. Changing the laptop re-fits base depth and lip height; tweak them freely afterwards.</p>
+      <p class="hint">Model sizes are approximate and the base thickness is estimated, so measure yours if you can. Changing the laptop re-fits the laptop surface; tweak it freely afterwards.</p>
     </fieldset>
 
     <fieldset>
       <legend>Stand</legend>
       <div class="row"><label for="angle">Tilt angle</label><input type="range" id="angle-r"><div class="num"><input id="angle" inputmode="decimal"><span>°</span></div></div>
-      <div class="row"><label for="depth">Base depth <small>front to back</small></label><input type="range" id="depth-r"><div class="num"><input id="depth" inputmode="decimal"><span>mm</span></div></div>
-      <div class="row"><label for="strut">Strut thickness</label><input type="range" id="strut-r"><div class="num"><input id="strut" inputmode="decimal"><span>mm</span></div></div>
+      <div class="row"><label for="suppLen">Laptop surface <small>along the slope</small></label><input type="range" id="suppLen-r"><div class="num"><input id="suppLen" inputmode="decimal"><span>mm</span></div></div>
+      <div class="row"><label for="beamT">Top beam thickness</label><input type="range" id="beamT-r"><div class="num"><input id="beamT" inputmode="decimal"><span>mm</span></div></div>
+      <div class="row"><label for="legT">Rear leg thickness</label><input type="range" id="legT-r"><div class="num"><input id="legT" inputmode="decimal"><span>mm</span></div></div>
+      <div class="row"><label for="topFlat">Flat top <small>blunts the rear tip</small></label><input type="range" id="topFlat-r"><div class="num"><input id="topFlat" inputmode="decimal"><span>mm</span></div></div>
+      <div class="row"><label for="gusset">Top reinforcement <small>depth under the beam</small></label><input type="range" id="gusset-r"><div class="num"><input id="gusset" inputmode="decimal"><span>mm</span></div></div>
       <div class="row"><label for="width">Piece width <small>print height</small></label><input type="range" id="width-r"><div class="num"><input id="width" inputmode="decimal"><span>mm</span></div></div>
     </fieldset>
 
     <fieldset>
-      <legend>Front lip</legend>
-      <div class="row"><label for="lipH">Lip height</label><input type="range" id="lipH-r"><div class="num"><input id="lipH" inputmode="decimal"><span>mm</span></div></div>
+      <legend>Front hook</legend>
       <div class="row"><label for="lipT">Lip thickness</label><input type="range" id="lipT-r"><div class="num"><input id="lipT" inputmode="decimal"><span>mm</span></div></div>
-      <p class="hint">Keep the lip lower than your laptop's front edge so it doesn't press on the palm rest.</p>
+      <div class="row"><label for="pad">Padding <small>per face</small></label><input type="range" id="pad-r"><div class="num"><input id="pad" inputmode="decimal"><span>mm</span></div></div>
+      <div class="row"><label for="wrap">Wrap-over <small>over the keyboard deck</small></label><input type="range" id="wrap-r"><div class="num"><input id="wrap" inputmode="decimal"><span>mm</span></div></div>
+      <div class="row"><label for="wrapT">Wrap-over thickness</label><input type="range" id="wrapT-r"><div class="num"><input id="wrapT" inputmode="decimal"><span>mm</span></div></div>
+      <p class="hint">The hook is sized to the open base plus padding on each face (felt or foam). Wrap-over adds a small return over the front of the deck; set 0 for a plain lip.</p>
     </fieldset>
 
     <fieldset>
       <legend>Options</legend>
       <div class="toggles">
-        <label><input type="checkbox" id="brace" checked> Centre brace</label>
         <label><input type="checkbox" id="showLaptop" checked> Show laptop</label>
       </div>
       <div class="toggles"><label for="count">Pieces in file <select id="count"><option value="2" selected>2</option><option value="1">1</option></select></label></div>
     </fieldset>
 
     <div class="actions">
-      <button class="primary" id="dl">Download STL (.zip)</button>
-      <button id="scad">Copy as OpenSCAD</button>
+      <button class="primary" id="dl3mf">Download 3MF <small>recommended</small></button>
+      <button id="dlstl">Download STL</button>
       <p class="status" id="status" role="status"></p>
     </div>
   </aside>
@@ -78,22 +82,31 @@
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 <script>
 const SPEC = {
-  angle:{min:5,max:35,step:1,v:15},
-  depth:{min:100,max:260,step:1,v:180},
-  strut:{min:3,max:15,step:0.5,v:6},
-  width:{min:8,max:40,step:1,v:18},
-  lipH:{min:4,max:30,step:0.5,v:10},
-  lipT:{min:3,max:12,step:0.5,v:5},
+  // laptop
   lapD:{min:150,max:320,step:0.5,v:225},
   lapW:{min:220,max:420,step:0.5,v:320},
-  lapT:{min:6,max:40,step:0.5,v:18},
+  lapB:{min:4,max:30,step:0.5,v:11.5},
+  // stand
+  angle:{min:25,max:75,step:1,v:45},
+  suppLen:{min:80,max:300,step:1,v:135},
+  beamT:{min:6,max:30,step:0.5,v:12},
+  legT:{min:6,max:30,step:0.5,v:12},
+  topFlat:{min:0,max:40,step:0.5,v:8},
+  gusset:{min:0,max:80,step:1,v:25},
+  width:{min:8,max:40,step:1,v:18},
+  // front hook
+  lipT:{min:3,max:12,step:0.5,v:5},
+  pad:{min:0,max:6,step:0.5,v:2},
+  wrap:{min:0,max:15,step:0.5,v:3},
+  wrapT:{min:2,max:12,step:0.5,v:4},
 };
-const P = {brace:true, count:2, showLaptop:true};
+const P = {count:2, showLaptop:true};
 for (const k in SPEC) P[k]=SPEC[k].v;
 const $ = id => document.getElementById(id);
 const f1 = x => (Math.round(x*10)/10).toString();
 const BED = 250;          // assumed print bed edge, mm
-const SUPPORT_FRAC = 0.8; // fit: support this share of the laptop's depth
+const SUPPORT_FRAC = 0.6; // fit: slope length as a share of laptop depth (the hook carries most of the load)
+const BASE_FRAC = 0.65;   // presets list closed thickness; the open base is estimated as this share of it
 
 /* ---------- laptop presets (approximate published dimensions, mm) ---------- */
 const LAPTOPS = [
@@ -136,14 +149,14 @@ function onParam(k){
   if(k==='angle') syncUse();
   update();
 }
+const estimateBase=t=>clampTo('lapB',Math.round(t*BASE_FRAC*2)/2);
 
-/* Fit the stand to the laptop: lip ≈ 60% of the front edge, support ≈ 80% of its depth, piece within the bed. */
+/* Fit the stand to the laptop: slope ≈ 60% of its depth, longer footprint side within the bed.
+   (The hook sizes itself from base thickness + padding.) */
 function fitStand(){
   const th=P.angle*Math.PI/180, s=Math.sin(th), c=Math.cos(th);
-  setParam('lipH',clampTo('lipH',Math.round(P.lapT*0.6*2)/2));
-  const wantD=(SUPPORT_FRAC*P.lapD+P.lipT)*c;   // supportLen = D/cos − lipT
-  const bedD=BED-2-s*P.lipH;                     // footprint = D + lip overhang at the front
-  setParam('depth',clampTo('depth',Math.round(Math.min(wantD,bedD))));
+  const bedS=(BED-10-P.beamT)/Math.max(s,c);
+  setParam('suppLen',clampTo('suppLen',Math.round(Math.min(SUPPORT_FRAC*P.lapD,bedS))));
 }
 function syncUse(){
   const match=[...$('use').options].some(o=>o.value===String(P.angle));
@@ -151,40 +164,78 @@ function syncUse(){
 }
 function applyPreset(id){
   const l=LAPTOPS.find(x=>x.id===id); if(!l) return;
-  setParam('lapD',l.d); setParam('lapW',l.w); setParam('lapT',l.t);
+  setParam('lapD',l.d); setParam('lapW',l.w); setParam('lapB',estimateBase(l.t));
   fitStand();
 }
 $('preset').addEventListener('change',e=>{applyPreset(e.target.value);update();setView(lastView);});
 $('use').addEventListener('change',e=>{if(e.target.value==='custom')return;setParam('angle',+e.target.value);fitStand();update();});
 applyPreset(DEFAULT_PRESET);
-$('brace').addEventListener('change',e=>{P.brace=e.target.checked;update();});
+syncUse();
 $('showLaptop').addEventListener('change',e=>{P.showLaptop=e.target.checked;if(laptop)laptop.visible=P.showLaptop;});
 $('count').addEventListener('change',e=>{P.count=+e.target.value;update();});
 
 /* ---------- profile geometry (x = depth, y = up) ---------- */
+const polyArea=pts=>{let a=0;for(let i=0;i<pts.length;i++){const p0=pts[i],p1=pts[(i+1)%pts.length];a+=p0[0]*p1[1]-p1[0]*p0[1];}return a/2;}; // signed, CCW > 0
+
+/* Profile: a thick sloped beam, a hook at its front that runs down into a flat front foot,
+   a vertical rear leg under the top of the slope (with a flat top instead of a sharp tip),
+   and a straight horizontal reinforcement filling the beam–leg corner.
+   Local frame: F = inner corner of the hook, u = along the slope (towards the rear), n = normal (up off the slope). */
 function profile(p){
   const th=p.angle*Math.PI/180, s=Math.sin(th), c=Math.cos(th);
-  const D=p.depth, t=p.strut, H=D*s/c;
   const u=[c,s], n=[-s,c];
-  const L1=[u[0]*p.lipT,u[1]*p.lipT];
-  const L2=[L1[0]+n[0]*p.lipH, L1[1]+n[1]*p.lipH];
-  const L3=[n[0]*p.lipH, n[1]*p.lipH];
-  const outer=[[D,0],[D,H],L1,L2,L3,[0,0]];
-  const yh=x=>(x*s-t)/c;               // inner offset of the support surface
-  const xf=t*(1+c)/s, xb=D-t, yt=yh(xb);
-  const holes=[]; const MIN=2;
-  if (xb-xf>MIN && yt-t>MIN){
-    if (p.brace){
-      const xm=(xf+xb)/2, a=xm-t/2, b=xm+t/2;
-      if (a-xf>MIN && yh(a)-t>MIN) holes.push([[xf,t],[a,t],[a,yh(a)]]);
-      if (xb-b>MIN && yt-t>MIN) holes.push(yh(b)-t>0.01?[[b,t],[xb,t],[xb,yt],[b,yh(b)]]:[[xb,t],[xb,yt],[b,t]]);
-    } else holes.push([[xf,t],[xb,t],[xb,yt]]);
+  const at=(a,b)=>[u[0]*a+n[0]*b, u[1]*a+n[1]*b];      // a along slope, b along normal, from F=(0,0)
+  const T=p.beamT, S=p.suppLen, lt=p.lipT;
+  const hIn=p.lapB+2*p.pad;                            // inner height of the hook: base + padding on both faces
+  const top=p.wrap>0?hIn+p.wrapT:hIn;                  // with wrap-over, the return (own thickness) sits on top of the channel
+  const Q=at(-lt,-T);                                  // hook's front-bottom corner → front foot
+  const A=at(S,0);                                     // top rear corner of the laptop surface
+  const R=[A[0]+p.topFlat, A[1]];                      // flat top: horizontal back from A, so the tip isn't a sharp wedge
+  // Sink Q below the ground and cut flat, giving a front foot ≈ beam thickness wide.
+  // Cut depth h gives a flat of h/(sin·cos) between the hook face and the beam underside.
+  const h=Math.max(6,T)*s*c, ground=Q[1]+h;            // ground level in local coordinates
+  // Rear leg: rear face at x = R.x, front face legT in front of it, meeting the beam underside at J (slope coordinate tJ).
+  // tG = where the beam underside reaches the ground, i.e. the rear end of the front foot.
+  // The leg's front face must meet the beam underside at least 3 mm below the top; with a long flat top on a thin
+  // leg it would land behind the slope, so the leg is widened instead.
+  const tJmax=S+(c*T-3)/s;
+  let tJ=(R[0]-p.legT-s*T)/c; const legWidened=tJ>tJmax; if(legWidened) tJ=tJmax;
+  const tG=-lt+h/s;
+  const legCramped=tJ<tG+3;                            // no room for an opening between foot and leg
+  const pts=[Q, at(-lt,top)];
+  if(p.wrap>0) pts.push(at(p.wrap,top), at(p.wrap,hIn), at(0,hIn));
+  else pts.push(at(0,top));
+  pts.push([0,0], A);
+  if(p.topFlat>0) pts.push(R);
+  pts.push([R[0],ground]);
+  let g=0;
+  if(!legCramped){
+    // Reinforcement: fill the corner down to a horizontal line g below J, running from the leg face (C)
+    // forward to the beam underside (B). Keep ≥3 mm of leg below it and ≥3 mm of opening behind the front foot.
+    const J=at(tJ,-T);
+    g=Math.min(p.gusset, Math.max(0, Math.min(J[1]-ground-3, s*(tJ-tG-3))));
+    pts.push([J[0],ground]);
+    if(g>0.5){
+      const C=[J[0],J[1]-g], tB=(C[1]+c*T)/s;          // underside: y = s·t − c·T
+      pts.push(C, at(tB,-T));
+    } else pts.push(J);
+  } // cramped: the leg and front foot merge, so the space under the beam is solid
+  // Drop consecutive duplicates.
+  for(let i=pts.length-1;i>0;i--) if(Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1])<1e-6) pts.splice(i,1);
+  // Clip everything below the ground (only the front corner dips under it), then move ground to y = 0.
+  const clipped=[];
+  for(let i=0;i<pts.length;i++){
+    const a=pts[i], b=pts[(i+1)%pts.length], ina=a[1]>=ground, inb=b[1]>=ground;
+    if(ina) clipped.push(a);
+    if(ina!==inb){const t=(ground-a[1])/(b[1]-a[1]); clipped.push([a[0]+t*(b[0]-a[0]),ground]);}
   }
-  const area=pts=>{let a=0;for(let i=0;i<pts.length;i++){const[p0,p1]=[pts[i],pts[(i+1)%pts.length]];a+=p0[0]*p1[1]-p1[0]*p0[1];}return Math.abs(a)/2;};
-  const netArea=area(outer)-holes.reduce((m,h)=>m+area(h),0);
+  let outer=clipped.map(q=>[q[0],q[1]-ground]);
+  if(polyArea(outer)<0) outer.reverse();
   const xs=outer.map(q=>q[0]), ys=outer.map(q=>q[1]);
   const bb={x0:Math.min(...xs),x1:Math.max(...xs),y0:0,y1:Math.max(...ys)};
-  return {outer,holes,H,L1,u,n,th,netArea,bb,supportLen:D/c-p.lipT,solid:holes.length===0};
+  const lapAt=at(p.pad,p.pad);                          // laptop's front-bottom edge, sitting on the padding
+  return {outer,holes:[],H:A[1]-ground,L1:[lapAt[0],lapAt[1]-ground],u,n,th,netArea:Math.abs(polyArea(outer)),bb,
+    supportLen:S-p.pad,ghostT:p.lapB,legCramped,legWidened,gussetClamped:!legCramped&&g<p.gusset-0.5,hookH:hIn};
 }
 
 /* ---------- three.js scene ---------- */
@@ -213,8 +264,9 @@ function applyTheme(){
   laptopMat.color.set(css('--laptop'));
   if(grid){scene.remove(grid);grid.geometry.dispose();}
   grid=new THREE.GridHelper(900,45,css('--muted'),css('--line'));
-  grid.position.set(P.depth/2,0,0); scene.add(grid);
+  grid.position.set(gridX(),0,0); scene.add(grid);
 }
+const gridX=()=>current?(current.bb.x0+current.bb.x1)/2:0;
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change',applyTheme);
 new MutationObserver(applyTheme).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
 
@@ -247,18 +299,19 @@ function rebuild(pr){
     const e=new THREE.LineSegments(edges,edgeMat); e.position.z=z; group.add(e);
   });
   // laptop ghost at its real size, front edge against the lip
-  const len=P.lapD, thick=P.lapT, wid=P.lapW;
+  const len=P.lapD, thick=pr.ghostT, wid=P.lapW;
   const lg=new THREE.BoxGeometry(len,thick,wid);
   laptop=new THREE.Mesh(lg,laptopMat);
   laptop.position.set(pr.L1[0]+pr.u[0]*len/2+pr.n[0]*thick/2, pr.L1[1]+pr.u[1]*len/2+pr.n[1]*thick/2, 0);
   laptop.rotation.z=pr.th; laptop.visible=P.showLaptop; group.add(laptop);
-  if(grid) grid.position.x=P.depth/2;
+  if(grid) grid.position.x=gridX();
   return geo;
 }
 let lastView='34';
 function setView(kind){
   // Frame a sphere around stand + laptop, using whichever field of view (vertical or horizontal) is narrower.
-  const tx=P.depth/2, ty=40, R=0.5*Math.hypot(Math.max(P.lapD,P.depth),P.lapW,120);
+  const bb=current.bb, bw=bb.x1-bb.x0, bh=bb.y1-bb.y0;
+  const tx=(bb.x0+bb.x1)/2, ty=Math.max(40,bh*0.45), R=0.5*Math.hypot(Math.max(P.lapD,bw),P.lapW,Math.max(120,bh+P.lapD*Math.sin(current.th)*0.3));
   const vf=camera.fov*Math.PI/180, hf=2*Math.atan(Math.tan(vf/2)*camera.aspect);
   const dist=R/Math.sin(Math.min(vf,hf)/2)*0.92;
   const dir=new THREE.Vector3(...(kind==='side'?[0,20,700]:[-380,260,430])).normalize();
@@ -287,6 +340,7 @@ function update(){
   const rows=[
     ['Rear height',f1(current.H)+' mm'],
     ['Laptop surface',f1(current.supportLen)+' mm'],
+    ['Hook opening',f1(current.hookH)+' mm'],
     ['Supported',Math.round(Math.min(1,current.supportLen/P.lapD)*100)+'%'],
     ['Piece footprint',`${f1(w)} × ${f1(h)} × ${P.width}`],
     ['Solid volume',f1(volCm3)+' cm³'],
@@ -294,9 +348,11 @@ function update(){
   ];
   $('readout').innerHTML=rows.map(r=>`<dt>${r[0]}</dt><dd>${r[1]}</dd>`).join('');
   const warns=[];
-  if(current.solid) warns.push('Struts are too thick for this size to leave an opening, so each piece will be solid.');
   if(current.supportLen<0.55*P.lapD) warns.push('Less than about half the laptop is supported, so it could tip backwards. Increase base depth.');
-  if(P.lipH>P.lapT-1) warns.push('The lip is about as tall as the laptop’s front edge and will press on the palm rest. Lower the lip.');
+  if(current.supportLen<0.5*P.lapD) warns.push('Less than half the laptop is on the slope, so it could tip backwards off the top. Increase the laptop surface.');
+  if(current.legCramped) warns.push('The laptop surface is short for this angle, so the leg meets the hook and the piece is solid underneath. Lengthen the laptop surface to open it up.');
+  if(current.legWidened&&!current.legCramped) warns.push('The flat top is longer than the rear leg is thick, so the leg was widened to sit under it.');
+  if(current.gussetClamped) warns.push('Top reinforcement was reduced to fit between the leg and the hook.');
   if(Math.max(w,h)>BED) warns.push(`Each piece is ${f1(Math.max(w,h))} mm long. Check it fits your bed, or print it diagonally.`);
   if(P.count===2 && h*2+10>BED) warns.push('Two pieces side by side may not fit a 250 mm bed. Export one piece and print twice.');
   $('warn').hidden=!warns.length; $('warn').textContent=warns.join(' ');
@@ -304,7 +360,14 @@ function update(){
   $('status').textContent='';
 }
 
-/* ---------- STL + ZIP export ---------- */
+/* ---------- export: 3MF + STL ---------- */
+// Both formats lay the profile flat on the bed (Z up) with pieces side by side along Y.
+function pieceOffsets(){
+  const pitch=current.bb.y1+10, offs=[];
+  for(let i=0;i<P.count;i++) offs.push([-current.bb.x0, i*pitch, 0]);
+  return offs;
+}
+
 function stlBinary(geo,offsets){
   const g=geo.index?geo.toNonIndexed():geo, pos=g.attributes.position.array, nt=pos.length/9;
   const buf=new ArrayBuffer(84+50*nt*offsets.length), dv=new DataView(buf);
@@ -322,22 +385,87 @@ function stlBinary(geo,offsets){
   }
   return new Uint8Array(buf);
 }
+
+// Indexed mesh with shared vertices (3MF expects a closed, manifold mesh, not a triangle soup).
+function weldMesh(geo,off){
+  const g=geo.index?geo.toNonIndexed():geo, pos=g.attributes.position.array;
+  const map=new Map(), verts=[], tris=[];
+  const vid=i=>{
+    const x=pos[i]+off[0], y=pos[i+1]+off[1], z=pos[i+2]+off[2];
+    const key=x.toFixed(4)+','+y.toFixed(4)+','+z.toFixed(4);
+    let id=map.get(key); if(id===undefined){id=verts.length;map.set(key,id);verts.push([x,y,z]);}
+    return id;
+  };
+  for(let i=0;i<pos.length;i+=9){
+    const a=vid(i),b=vid(i+3),c=vid(i+6);
+    if(a!==b&&b!==c&&a!==c) tris.push([a,b,c]); // drop triangles that collapsed during welding
+  }
+  return {verts,tris};
+}
+
+const xmlEsc=s=>String(s).replace(/[<>&"']/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&apos;'}[c]));
+function model3mf(geo,offsets){
+  const n=v=>+v.toFixed(4);
+  const objects=offsets.map((off,i)=>{
+    const m=weldMesh(geo,off);
+    const vs=m.verts.map(v=>`<vertex x="${n(v[0])}" y="${n(v[1])}" z="${n(v[2])}"/>`).join('');
+    const ts=m.tris.map(t=>`<triangle v1="${t[0]}" v2="${t[1]}" v3="${t[2]}"/>`).join('');
+    return `<object id="${i+1}" type="model" name="${xmlEsc('Side piece '+(i+1))}"><mesh><vertices>${vs}</vertices><triangles>${ts}</triangles></mesh></object>`;
+  }).join('');
+  const items=offsets.map((_,i)=>`<item objectid="${i+1}"/>`).join('');
+  const lap=$('preset').value==='custom'?'custom laptop':$('preset').selectedOptions[0].text;
+  const desc=`angle ${P.angle}°, slope ${P.suppLen}, beam ${P.beamT}, leg ${P.legT}, reinforcement ${P.gusset}, flat top ${P.topFlat}, lip ${P.lipT}, padding ${P.pad}, wrap-over ${P.wrap}×${P.wrapT}, width ${P.width}; ${lap} ${P.lapD}×${P.lapW}, base ${P.lapB} mm`;
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<model unit="millimeter" xml:lang="en-US" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02">
+<metadata name="Title">Laptop stand side pieces</metadata>
+<metadata name="Application">Laptop Stand Maker</metadata>
+<metadata name="Description">${xmlEsc(desc)}</metadata>
+<resources>${objects}</resources>
+<build>${items}</build>
+</model>`;
+}
+function file3mf(geo,offsets){
+  const enc=s=>new TextEncoder().encode(s);
+  return zipFiles([
+    {name:'[Content_Types].xml',data:enc(`<?xml version="1.0" encoding="UTF-8"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="model" ContentType="application/vnd.ms-package.3dmanufacturing-3dmodel+xml"/></Types>`)},
+    {name:'_rels/.rels',data:enc(`<?xml version="1.0" encoding="UTF-8"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Target="/3D/3dmodel.model" Id="rel0" Type="http://schemas.microsoft.com/3dmanufacturing/2013/01/3dmodel"/></Relationships>`)},
+    {name:'3D/3dmodel.model',data:enc(model3mf(geo,offsets))},
+  ]);
+}
+
+// Minimal ZIP writer (stored, no compression) — enough for STL bundles and 3MF packages.
 const CRC=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0;}return t;})();
 function crc32(d){let c=0xFFFFFFFF;for(let i=0;i<d.length;i++)c=CRC[(c^d[i])&255]^(c>>>8);return (c^0xFFFFFFFF)>>>0;}
-function zipOne(name,data){
-  const nm=new TextEncoder().encode(name), crc=crc32(data), now=new Date();
+function zipFiles(files){
+  const now=new Date();
   const time=(now.getHours()<<11)|(now.getMinutes()<<5)|(now.getSeconds()>>1);
   const date=((now.getFullYear()-1980)<<9)|((now.getMonth()+1)<<5)|now.getDate();
-  const lh=new DataView(new ArrayBuffer(30)), ch=new DataView(new ArrayBuffer(46)), ed=new DataView(new ArrayBuffer(22));
-  lh.setUint32(0,0x04034b50,true);lh.setUint16(4,20,true);lh.setUint16(10,time,true);lh.setUint16(12,date,true);
-  lh.setUint32(14,crc,true);lh.setUint32(18,data.length,true);lh.setUint32(22,data.length,true);lh.setUint16(26,nm.length,true);
-  ch.setUint32(0,0x02014b50,true);ch.setUint16(4,20,true);ch.setUint16(6,20,true);ch.setUint16(12,time,true);ch.setUint16(14,date,true);
-  ch.setUint32(16,crc,true);ch.setUint32(20,data.length,true);ch.setUint32(24,data.length,true);ch.setUint16(28,nm.length,true);
-  const cdOff=30+nm.length+data.length, cdSize=46+nm.length;
-  ed.setUint32(0,0x06054b50,true);ed.setUint16(8,1,true);ed.setUint16(10,1,true);ed.setUint32(12,cdSize,true);ed.setUint32(16,cdOff,true);
-  return new Blob([lh.buffer,nm,data,ch.buffer,nm,ed.buffer]);
+  const parts=[], central=[]; let off=0;
+  for(const f of files){
+    const nm=new TextEncoder().encode(f.name), crc=crc32(f.data), len=f.data.length;
+    const lh=new DataView(new ArrayBuffer(30));
+    lh.setUint32(0,0x04034b50,true);lh.setUint16(4,20,true);lh.setUint16(6,0x0800,true); // UTF-8 names
+    lh.setUint16(10,time,true);lh.setUint16(12,date,true);
+    lh.setUint32(14,crc,true);lh.setUint32(18,len,true);lh.setUint32(22,len,true);lh.setUint16(26,nm.length,true);
+    const ch=new DataView(new ArrayBuffer(46));
+    ch.setUint32(0,0x02014b50,true);ch.setUint16(4,20,true);ch.setUint16(6,20,true);ch.setUint16(8,0x0800,true);
+    ch.setUint16(12,time,true);ch.setUint16(14,date,true);
+    ch.setUint32(16,crc,true);ch.setUint32(20,len,true);ch.setUint32(24,len,true);ch.setUint16(28,nm.length,true);
+    ch.setUint32(42,off,true);
+    parts.push(lh.buffer,nm,f.data); central.push(ch.buffer,nm);
+    off+=30+nm.length+len;
+  }
+  const cdSize=central.reduce((s,b)=>s+b.byteLength,0);
+  const ed=new DataView(new ArrayBuffer(22));
+  ed.setUint32(0,0x06054b50,true);ed.setUint16(8,files.length,true);ed.setUint16(10,files.length,true);
+  ed.setUint32(12,cdSize,true);ed.setUint32(16,off,true);
+  return new Blob([...parts,...central,ed.buffer]);
 }
-function baseName(){return `laptop-stand_${P.angle}deg_${P.depth}x${P.width}_strut${P.strut}`;}
+function baseName(){
+  return `laptop-stand_${P.angle}deg_${P.suppLen}x${P.width}_beam${P.beamT}`;
+}
 
 // Use the host's download capability when embedded as a Claude artifact; otherwise a plain browser download.
 const dlPromise = (window.claude && window.claude.use) ? window.claude.use('downloads').catch(()=>null) : Promise.resolve(null);
@@ -346,48 +474,29 @@ function browserSave(filename,blob){
   a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove();
   setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
-$('dl').addEventListener('click',async()=>{
-  const btn=$('dl'); btn.disabled=true; $('status').textContent='Preparing file…';
+const EXPORTS={
+  '3mf':()=>({filename:baseName()+'.3mf', blob:file3mf(currentGeo,pieceOffsets()), done:'3MF saved.'}),
+  // Plain .stl in a normal browser; zipped inside the artifact host, which is stricter about file types.
+  'stl':host=>{
+    const stl=stlBinary(currentGeo,pieceOffsets());
+    return host?{filename:baseName()+'.zip', blob:zipFiles([{name:baseName()+'.stl',data:stl}]), done:'Saved. Unzip to get the STL.'}
+               :{filename:baseName()+'.stl', blob:new Blob([stl],{type:'model/stl'}), done:'STL saved.'};
+  },
+};
+async function exportFile(kind,btn){
+  btn.disabled=true; $('status').textContent='Preparing file…';
   try{
-    const h=current.bb.y1+10, offs=[];
-    for(let i=0;i<P.count;i++) offs.push([-current.bb.x0, i*h, 0]); // Z-up: profile lies flat on the bed
-    const stl=stlBinary(currentGeo,offs);
-    const zip=zipOne(baseName()+'.stl',stl), filename=baseName()+'.zip';
-    const dl=await dlPromise;
-    if(!dl){browserSave(filename,zip);$('status').textContent='Downloaded. Unzip to get the STL.';return;}
-    const res=await dl.save({filename,data:zip});
-    $('status').textContent=res.status==='saved'?'Saved. Unzip to get the STL.':'';
+    const dl=await dlPromise, f=EXPORTS[kind](!!dl);
+    if(!dl){browserSave(f.filename,f.blob);$('status').textContent=f.done;return;}
+    const res=await dl.save({filename:f.filename,data:f.blob});
+    $('status').textContent=res.status==='saved'?f.done:'';
   }catch(e){
     const c=e&&e.code;
-    $('status').textContent=c==='declined'?'Download cancelled.':c==='rate_limited'?'A download prompt is already open.':'Couldn’t save the file here. Try “Copy as OpenSCAD” instead.';
+    $('status').textContent=c==='declined'?'Download cancelled.':c==='rate_limited'?'A download prompt is already open.':'Couldn’t save the file here.';
   }finally{btn.disabled=false;}
-});
-
-function scadText(){
-  const pr=current, pts=[...pr.outer,...pr.holes.flat()].map(q=>`[${q[0].toFixed(3)},${q[1].toFixed(3)}]`);
-  const paths=[]; let i=0;
-  paths.push(pr.outer.map(()=>i++));
-  pr.holes.forEach(h=>paths.push(h.map(()=>i++)));
-  return `// Laptop stand side piece — generated by Laptop Stand Maker
-// angle=${P.angle}deg depth=${P.depth} strut=${P.strut} width=${P.width} lipH=${P.lipH} lipT=${P.lipT} brace=${P.brace}
-// laptop: ${$('preset').value==='custom'?'custom':$('preset').selectedOptions[0].text} ${P.lapD}×${P.lapW}×${P.lapT} mm
-count = ${P.count};
-width = ${P.width};
-pitch = ${(pr.bb.y1+10).toFixed(2)};
-pts = [${pts.join(',')}];
-paths = [${paths.map(p=>'['+p.join(',')+']').join(',')}];
-for (k = [0:count-1]) translate([${(-pr.bb.x0).toFixed(3)}, k*pitch, 0])
-  linear_extrude(height = width) polygon(points = pts, paths = paths);
-`;
 }
-$('scad').addEventListener('click',()=>{
-  const txt=scadText();
-  navigator.clipboard.writeText(txt).then(()=>{$('status').textContent='OpenSCAD script copied.';})
-  .catch(()=>{
-    const ta=document.createElement('textarea');ta.value=txt;ta.style.cssText='width:100%;height:140px;font:11px var(--mono)';
-    $('status').textContent='Copy blocked. Select the script below:';$('status').after(ta);ta.select();
-  });
-});
+$('dl3mf').addEventListener('click',e=>exportFile('3mf',e.currentTarget));
+$('dlstl').addEventListener('click',e=>exportFile('stl',e.currentTarget));
 
 resize(); update();
 </script>
