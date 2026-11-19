@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Laptop Stand Maker</title>
+<title>BUAS Laptop Stand Maker</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="styles.css">
@@ -15,8 +15,9 @@
 <body>
 <div class="app">
   <aside class="rail">
-    <div>
-      <h1>Laptop Stand Maker</h1>
+    <div class="brand">
+      <img src="buas.png" alt="BUAS" width="118" height="38">
+      <h1>BUAS Laptop Stand Maker</h1>
       <p class="sub">Side supports, printed flat. Units in mm.</p>
     </div>
 
@@ -41,6 +42,7 @@
       <div class="row"><label for="suppLen">Laptop surface <small>along the slope</small></label><input type="range" id="suppLen-r"><div class="num"><input id="suppLen" inputmode="decimal"><span>mm</span></div></div>
       <div class="row"><label for="beamT">Top beam thickness</label><input type="range" id="beamT-r"><div class="num"><input id="beamT" inputmode="decimal"><span>mm</span></div></div>
       <div class="row"><label for="legT">Rear leg thickness</label><input type="range" id="legT-r"><div class="num"><input id="legT" inputmode="decimal"><span>mm</span></div></div>
+      <div class="row"><label for="legLean">Rear leg lean <small>0° vertical, + leans back</small></label><input type="range" id="legLean-r"><div class="num"><input id="legLean" inputmode="decimal"><span>°</span></div></div>
       <div class="row"><label for="topFlat">Flat top <small>blunts the rear tip</small></label><input type="range" id="topFlat-r"><div class="num"><input id="topFlat" inputmode="decimal"><span>mm</span></div></div>
       <div class="row"><label for="gusset">Top reinforcement <small>depth under the beam</small></label><input type="range" id="gusset-r"><div class="num"><input id="gusset" inputmode="decimal"><span>mm</span></div></div>
       <div class="row"><label for="width">Piece width <small>print height</small></label><input type="range" id="width-r"><div class="num"><input id="width" inputmode="decimal"><span>mm</span></div></div>
@@ -56,16 +58,34 @@
     </fieldset>
 
     <fieldset>
+      <legend>Crossbars</legend>
+      <div class="toggles">
+        <label><input type="checkbox" id="barBeam"> Top beam</label>
+        <label><input type="checkbox" id="barLeg"> Rear leg</label>
+      </div>
+      <div class="row"><label for="gap">Inner spacing <small>between the sides</small></label><input type="range" id="gap-r"><div class="num"><input id="gap" inputmode="decimal"><span>mm</span></div></div>
+      <div class="row"><label for="barW">Bar width <small>along the beam</small></label><input type="range" id="barW-r"><div class="num"><input id="barW" inputmode="decimal"><span>mm</span></div></div>
+      <div class="row"><label for="barTh">Bar thickness <small>across the beam</small></label><input type="range" id="barTh-r"><div class="num"><input id="barTh" inputmode="decimal"><span>mm</span></div></div>
+      <div class="row"><label for="pocketD">Pocket depth <small>into each side</small></label><input type="range" id="pocketD-r"><div class="num"><input id="pocketD" inputmode="decimal"><span>mm</span></div></div>
+      <div class="row"><label for="barChamfer">End chamfer <small>lead-in on the bar ends</small></label><input type="range" id="barChamfer-r"><div class="num"><input id="barChamfer" inputmode="decimal"><span>mm</span></div></div>
+      <div class="row"><label for="barFit">Fit clearance <small>added to the pocket</small></label><input type="range" id="barFit-r"><div class="num"><input id="barFit" inputmode="decimal"><span>mm</span></div></div>
+      <p class="hint">Plain rectangular bars that sit in blind pockets on the inner faces of the sides, lined up with the top beam and/or rear leg. The outside faces stay clean, and the bar ends bottom out in the pockets, which fixes the spacing. Raise the clearance if the bars are too tight on your printer.</p>
+    </fieldset>
+
+    <fieldset>
       <legend>Options</legend>
       <div class="toggles">
         <label><input type="checkbox" id="showLaptop" checked> Show laptop</label>
       </div>
-      <div class="toggles"><label for="count">Pieces in file <select id="count"><option value="2" selected>2</option><option value="1">1</option></select></label></div>
+      <div class="row"><label for="bed">Bed size <small>square, usable area</small></label><input type="range" id="bed-r"><div class="num"><input id="bed" inputmode="decimal"><span>mm</span></div></div>
+      <div class="bedview"><svg id="bedview" viewBox="0 0 100 100" role="img" aria-label="Bed layout preview"></svg><p class="hint" id="bedinfo"></p></div>
+      <div class="toggles"><label for="count">Pieces in file <select id="count"><option value="2" selected>Both sides + crossbars</option><option value="1">One side</option><option value="0">Crossbars only</option></select></label></div>
     </fieldset>
 
     <div class="actions">
       <button class="primary" id="dl3mf">Download 3MF <small>recommended</small></button>
       <button id="dlstl">Download STL</button>
+      <button id="reset" class="link">Reset to defaults</button>
       <p class="status" id="status" role="status"></p>
     </div>
   </aside>
@@ -91,6 +111,7 @@ const SPEC = {
   suppLen:{min:80,max:300,step:1,v:135},
   beamT:{min:6,max:30,step:0.5,v:12},
   legT:{min:6,max:30,step:0.5,v:12},
+  legLean:{min:-10,max:40,step:1,v:0},
   topFlat:{min:0,max:40,step:0.5,v:8},
   gusset:{min:0,max:80,step:1,v:25},
   width:{min:8,max:40,step:1,v:18},
@@ -99,12 +120,24 @@ const SPEC = {
   pad:{min:0,max:6,step:0.5,v:2},
   wrap:{min:0,max:15,step:0.5,v:3},
   wrapT:{min:2,max:12,step:0.5,v:4},
+  // crossbars
+  gap:{min:60,max:300,step:1,v:184},
+  barW:{min:6,max:40,step:0.5,v:16},
+  barTh:{min:3,max:14,step:0.5,v:6},
+  pocketD:{min:3,max:30,step:0.5,v:10},
+  barChamfer:{min:0,max:2,step:0.1,v:0.6},
+  barFit:{min:0,max:0.6,step:0.05,v:0.2},
+  // printer
+  bed:{min:120,max:400,step:1,v:250},
 };
-const P = {count:2, showLaptop:true};
+const BARS=['barBeam','barLeg'];
+const BAR_NAME={barBeam:'top beam',barLeg:'rear leg'};
+const SLOT_WALL=2.5;      // minimum material around a crossbar pocket, mm
+const POCKET_FLOOR=2;     // minimum material left behind a pocket (towards the outer face), mm
+const P = {count:2, showLaptop:true, barBeam:false, barLeg:false};
 for (const k in SPEC) P[k]=SPEC[k].v;
 const $ = id => document.getElementById(id);
 const f1 = x => (Math.round(x*10)/10).toString();
-const BED = 250;          // assumed print bed edge, mm
 const SUPPORT_FRAC = 0.6; // fit: slope length as a share of laptop depth (the hook carries most of the load)
 const BASE_FRAC = 0.65;   // presets list closed thickness; the open base is estimated as this share of it
 
@@ -145,7 +178,7 @@ for (const k in SPEC){
   n.addEventListener('change',()=>{let v=parseFloat(n.value);if(!isFinite(v))v=P[k];commit(clampTo(k,v));});
 }
 function onParam(k){
-  if(k.startsWith('lap')){$('preset').value='custom';fitStand();}
+  if(k.startsWith('lap')){$('preset').value='custom';fitStand();fitGap();}
   if(k==='angle') syncUse();
   update();
 }
@@ -155,9 +188,11 @@ const estimateBase=t=>clampTo('lapB',Math.round(t*BASE_FRAC*2)/2);
    (The hook sizes itself from base thickness + padding.) */
 function fitStand(){
   const th=P.angle*Math.PI/180, s=Math.sin(th), c=Math.cos(th);
-  const bedS=(BED-10-P.beamT)/Math.max(s,c);
+  const bedS=(P.bed-10-P.beamT)/Math.max(s,c);
   setParam('suppLen',clampTo('suppLen',Math.round(Math.min(SUPPORT_FRAC*P.lapD,bedS))));
 }
+// Sides sit ~50 mm in from each edge of the laptop.
+function fitGap(){setParam('gap',clampTo('gap',Math.round(P.lapW-2*P.width-100)));}
 function syncUse(){
   const match=[...$('use').options].some(o=>o.value===String(P.angle));
   $('use').value=match?String(P.angle):'custom';
@@ -165,17 +200,80 @@ function syncUse(){
 function applyPreset(id){
   const l=LAPTOPS.find(x=>x.id===id); if(!l) return;
   setParam('lapD',l.d); setParam('lapW',l.w); setParam('lapB',estimateBase(l.t));
-  fitStand();
+  fitStand(); fitGap();
 }
 $('preset').addEventListener('change',e=>{applyPreset(e.target.value);update();setView(lastView);});
 $('use').addEventListener('change',e=>{if(e.target.value==='custom')return;setParam('angle',+e.target.value);fitStand();update();});
-applyPreset(DEFAULT_PRESET);
-syncUse();
-$('showLaptop').addEventListener('change',e=>{P.showLaptop=e.target.checked;if(laptop)laptop.visible=P.showLaptop;});
+$('showLaptop').addEventListener('change',e=>{P.showLaptop=e.target.checked;if(laptop)laptop.visible=P.showLaptop;saveSettings();});
 $('count').addEventListener('change',e=>{P.count=+e.target.value;update();});
+BARS.forEach(k=>$(k).addEventListener('change',e=>{P[k]=e.target.checked;update();}));
+
+/* ---------- remember the last design in this browser ---------- */
+// Stored per browser/device in localStorage. Unknown or out-of-range values are ignored, so an old save can't break the page.
+const SETTINGS_KEY='laptopStand.settings.v1';
+let saveTimer=null;
+function saveSettings(){
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(()=>{
+    const data={preset:$('preset').value, count:P.count, showLaptop:P.showLaptop};
+    BARS.forEach(k=>data[k]=P[k]);
+    for(const k in SPEC) data[k]=P[k];
+    try{localStorage.setItem(SETTINGS_KEY,JSON.stringify(data));}catch(e){}
+  },300);
+}
+function loadSettings(){
+  let d=null;
+  try{d=JSON.parse(localStorage.getItem(SETTINGS_KEY));}catch(e){}
+  if(!d||typeof d!=='object') return false;
+  for(const k in SPEC) if(typeof d[k]==='number'&&isFinite(d[k])) setParam(k,clampTo(k,d[k]));
+  if([...$('preset').options].some(o=>o.value===d.preset)) $('preset').value=d.preset;
+  if(d.count===0||d.count===1||d.count===2){P.count=d.count;$('count').value=String(d.count);}
+  BARS.forEach(k=>{if(typeof d[k]==='boolean'){P[k]=d[k];$(k).checked=d[k];}});
+  if(typeof d.showLaptop==='boolean'){P.showLaptop=d.showLaptop;$('showLaptop').checked=d.showLaptop;}
+  return true;
+}
+function resetSettings(){
+  try{localStorage.removeItem(SETTINGS_KEY);}catch(e){}
+  for(const k in SPEC) setParam(k,SPEC[k].v);
+  P.count=2; $('count').value='2'; P.showLaptop=true; $('showLaptop').checked=true;
+  BARS.forEach(k=>{P[k]=false;$(k).checked=false;});
+  $('preset').value=DEFAULT_PRESET; applyPreset(DEFAULT_PRESET); syncUse();
+  update(); setView(lastView);
+  $('status').textContent='Settings reset to defaults.';
+}
+$('reset').addEventListener('click',resetSettings);
+
+// Start from the saved design if there is one, otherwise fit the default laptop.
+if(!loadSettings()) applyPreset(DEFAULT_PRESET);
+syncUse();
 
 /* ---------- profile geometry (x = depth, y = up) ---------- */
 const polyArea=pts=>{let a=0;for(let i=0;i<pts.length;i++){const p0=pts[i],p1=pts[(i+1)%pts.length];a+=p0[0]*p1[1]-p1[0]*p0[1];}return a/2;}; // signed, CCW > 0
+
+// Is the rectangle (centre x,y, half-sizes rx × ry, rotated CCW by ang) fully inside the polygon?
+// Works in the rectangle's own frame: centre inside and no polygon edge touching it.
+function rectInside(poly,x,y,rx,ry,ang=0){
+  const ca=Math.cos(ang), sa=Math.sin(ang);
+  poly=poly.map(q=>{const dx=q[0]-x, dy=q[1]-y; return [dx*ca+dy*sa, -dx*sa+dy*ca];});
+  x=0; y=0;
+  let inside=false;
+  for(let i=0,j=poly.length-1;i<poly.length;j=i++){
+    const a=poly[i], b=poly[j];
+    if((a[1]>y)!==(b[1]>y) && x<(b[0]-a[0])*(y-a[1])/(b[1]-a[1])+a[0]) inside=!inside;
+  }
+  if(!inside) return false;
+  const x0=x-rx,x1=x+rx,y0=y-ry,y1=y+ry;
+  for(let i=0,j=poly.length-1;i<poly.length;j=i++){
+    const a=poly[j], b=poly[i], dx=b[0]-a[0], dy=b[1]-a[1];
+    let t0=0,t1=1, hit=true;                              // Liang–Barsky clip of the edge against the rectangle
+    for(const [pp,q] of [[-dx,a[0]-x0],[dx,x1-a[0]],[-dy,a[1]-y0],[dy,y1-a[1]]]){
+      if(pp===0){ if(q<0){hit=false;break;} }
+      else { const t=q/pp; if(pp<0){ if(t>t1){hit=false;break;} if(t>t0)t0=t; } else { if(t<t0){hit=false;break;} if(t<t1)t1=t; } }
+    }
+    if(hit) return false;
+  }
+  return true;
+}
 
 /* Profile: a thick sloped beam, a hook at its front that runs down into a flat front foot,
    a vertical rear leg under the top of the slope (with a flat top instead of a sharp tip),
@@ -194,34 +292,37 @@ function profile(p){
   // Sink Q below the ground and cut flat, giving a front foot ≈ beam thickness wide.
   // Cut depth h gives a flat of h/(sin·cos) between the hook face and the beam underside.
   const h=Math.max(6,T)*s*c, ground=Q[1]+h;            // ground level in local coordinates
-  // Rear leg: rear face at x = R.x, front face legT in front of it, meeting the beam underside at J (slope coordinate tJ).
-  // tG = where the beam underside reaches the ground, i.e. the rear end of the front foot.
-  // The leg's front face must meet the beam underside at least 3 mm below the top; with a long flat top on a thin
-  // leg it would land behind the slope, so the leg is widened instead.
-  const tJmax=S+(c*T-3)/s;
-  let tJ=(R[0]-p.legT-s*T)/c; const legWidened=tJ>tJmax; if(legWidened) tJ=tJmax;
-  const tG=-lt+h/s;
-  const legCramped=tJ<tG+3;                            // no room for an opening between foot and leg
+  // Rear leg: its rear face runs down from R, leaning back by legLean (direction d); its front face is parallel,
+  // legT in front of it, and meets the beam underside U(t) at J. tG = where the underside reaches the ground
+  // (the rear end of the front foot). The front face must meet the underside ≥3 mm below the top; with a long
+  // flat top on a thin leg it would land behind the slope, so the leg is widened instead.
+  const phi=p.legLean*Math.PI/180, tp=Math.tan(phi);
+  const d=[Math.sin(phi),-Math.cos(phi)], m=[-Math.cos(phi),-Math.sin(phi)];   // down the leg; forward, normal to it
+  const xOn=(P0,y)=>P0[0]+(P0[1]-y)*tp;                 // x of a leg-parallel line through P0 at height y
+  const U=t=>[c*t+s*T, s*t-c*T];                         // beam underside
+  const F0=[R[0]+p.legT*m[0], R[1]+p.legT*m[1]];         // a point on the leg's front face
+  let tJ=(F0[0]+(F0[1]+c*T)*tp-s*T)/(c+s*tp);
+  const tJmax=S+(c*T-3)/s, legWidened=tJ>tJmax; if(legWidened) tJ=tJmax;
+  const tG=-lt+h/s, J=U(tJ);
+  const frontGroundX=xOn(J,ground), rearGround=[xOn(R,ground),ground];
+  const legCramped=tJ<tG+3 || frontGroundX<U(tG)[0]+3;    // no room for an opening between foot and leg
+  // Reinforcement depth: fill the beam–leg corner down to a horizontal line g below J. Keep ≥3 mm of leg below it
+  // and ≥3 mm of opening behind the front foot.
+  const g=legCramped?0:Math.min(p.gusset, Math.max(0, Math.min(J[1]-ground-3, s*(tJ-tG-3))));
+  const Cy=g>0.5?J[1]-g:null, tB=Cy!==null?(Cy+c*T)/s:tJ;   // underside: y = s·t − c·T
   const pts=[Q, at(-lt,top)];
   if(p.wrap>0) pts.push(at(p.wrap,top), at(p.wrap,hIn), at(0,hIn));
   else pts.push(at(0,top));
   pts.push([0,0], A);
   if(p.topFlat>0) pts.push(R);
-  pts.push([R[0],ground]);
-  let g=0;
+  pts.push(rearGround);
   if(!legCramped){
-    // Reinforcement: fill the corner down to a horizontal line g below J, running from the leg face (C)
-    // forward to the beam underside (B). Keep ≥3 mm of leg below it and ≥3 mm of opening behind the front foot.
-    const J=at(tJ,-T);
-    g=Math.min(p.gusset, Math.max(0, Math.min(J[1]-ground-3, s*(tJ-tG-3))));
-    pts.push([J[0],ground]);
-    if(g>0.5){
-      const C=[J[0],J[1]-g], tB=(C[1]+c*T)/s;          // underside: y = s·t − c·T
-      pts.push(C, at(tB,-T));
-    } else pts.push(J);
+    pts.push([frontGroundX,ground]);
+    if(Cy!==null) pts.push([xOn(J,Cy),Cy], U(tB));     // C on the leg's front face, B on the beam underside
+    else pts.push(J);
   } // cramped: the leg and front foot merge, so the space under the beam is solid
-  // Drop consecutive duplicates.
-  for(let i=pts.length-1;i>0;i--) if(Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1])<1e-6) pts.splice(i,1);
+  const dedupe=a=>{for(let i=a.length-1;i>0;i--) if(Math.hypot(a[i][0]-a[i-1][0],a[i][1]-a[i-1][1])<1e-6) a.splice(i,1); return a;};
+  dedupe(pts);
   // Clip everything below the ground (only the front corner dips under it), then move ground to y = 0.
   const clipped=[];
   for(let i=0;i<pts.length;i++){
@@ -229,12 +330,50 @@ function profile(p){
     if(ina) clipped.push(a);
     if(ina!==inb){const t=(ground-a[1])/(b[1]-a[1]); clipped.push([a[0]+t*(b[0]-a[0]),ground]);}
   }
-  let outer=clipped.map(q=>[q[0],q[1]-ground]);
+  let outer=dedupe(clipped.map(q=>[q[0],q[1]-ground]));
+  if(Math.hypot(outer[0][0]-outer[outer.length-1][0],outer[0][1]-outer[outer.length-1][1])<1e-6) outer.pop();
   if(polyArea(outer)<0) outer.reverse();
   const xs=outer.map(q=>q[0]), ys=outer.map(q=>q[1]);
   const bb={x0:Math.min(...xs),x1:Math.max(...xs),y0:0,y1:Math.max(...ys)};
+  // Crossbar pockets: rectangles (bar section + clearance) centred in the thickness of a main beam and rotated to
+  // follow it (bar width along the beam, thickness across it), with ≥ SLOT_WALL of material all round. They are blind:
+  // cut pocketD deep into the inner face only. Each starts mid-span and steps outwards until the pocket fits.
+  //  - top beam: on the beam's centre line, midway along the open span between the front foot and the reinforcement;
+  //  - rear leg: on the leg's centre line, midway between the ground and the reinforcement.
+  // ang = direction of the slot's local x axis; the bar's wide middle (its shoulders) runs along it, i.e. along the beam.
+  const hx=(p.barW+p.barFit)/2, hy=(p.barTh+p.barFit)/2;      // pocket half-sizes: along / across the beam
+  const pocketD=Math.min(p.pocketD, p.width-POCKET_FLOOR);
+  const legMidX=y=>(xOn(J,y)+xOn(R,y))/2;                 // between the leg's front and rear faces, at height y
+  const legTopY=legCramped?R[1]:(Cy!==null?Cy:J[1]);
+  // mid = preferred spot (middle of the open span); lo..hi = how far the search may go along the whole beam,
+  // e.g. up into the solid reinforcement when the open part of a short leg is smaller than the slot.
+  const lines={
+    barBeam:{ang:th, mid:legCramped?S/2:(tG+tB)/2, lo:-lt, hi:S, at:t=>{const q=at(t,-T/2);return [q[0],q[1]-ground];}},
+    barLeg: {ang:phi+Math.PI/2, mid:(ground+legTopY)/2, lo:ground, hi:R[1], at:y=>[legMidX(y),y-ground]},
+  };
+  const slots=[], missing=[], holes=[];
+  for(const k of BARS){
+    if(!p[k]) continue;
+    const L=lines[k], mid=L.mid;
+    let best=null;
+    for(let i=0;i<=4*(L.hi-L.lo)&&!best;i++){
+      const v=mid+(i%2?1:-1)*Math.ceil(i/2)*0.5;           // mid, mid+0.5, mid−0.5, mid+1, …
+      if(v<L.lo||v>L.hi) continue;
+      const [x,y]=L.at(v);
+      if(!rectInside(outer,x,y,hx+SLOT_WALL,hy+SLOT_WALL,L.ang)) continue;
+      if(slots.some(o=>Math.hypot(o.x-x,o.y-y)<2*Math.hypot(hx,hy)+SLOT_WALL)) continue;
+      best=[x,y];
+    }
+    if(!best){missing.push(k);continue;}
+    // Nudge each slot by a few hundredths of a mm so no two slot edges are collinear (keeps the mesh manifold).
+    const e=slots.length*0.037, x=best[0]+e, y=best[1]+e;
+    const ang=L.ang, ca=Math.cos(ang), sa=Math.sin(ang);
+    slots.push({k,x,y,ang});
+    holes.push([[-hx,-hy],[hx,-hy],[hx,hy],[-hx,hy]].map(([u,v])=>[x+u*ca-v*sa, y+u*sa+v*ca]));
+  }
   const lapAt=at(p.pad,p.pad);                          // laptop's front-bottom edge, sitting on the padding
-  return {outer,holes:[],H:A[1]-ground,L1:[lapAt[0],lapAt[1]-ground],u,n,th,netArea:Math.abs(polyArea(outer)),bb,
+  const sideVol=Math.abs(polyArea(outer))*p.width-holes.length*(4*hx*hy)*pocketD;
+  return {outer,holes,slots,missing,pocketD,sideVol,H:A[1]-ground,L1:[lapAt[0],lapAt[1]-ground],u,n,th,bb,
     supportLen:S-p.pad,ghostT:p.lapB,legCramped,legWidened,gussetClamped:!legCramped&&g<p.gusset-0.5,hookH:hIn};
 }
 
@@ -247,7 +386,7 @@ const scene=new THREE.Scene();
 const camera=new THREE.PerspectiveCamera(35,1,1,6000);
 const controls=new THREE.OrbitControls(camera,renderer.domElement);
 controls.enableDamping=true; controls.dampingFactor=0.12;
-scene.add(new THREE.HemisphereLight(0xffffff,0x667770,0.75));
+scene.add(new THREE.HemisphereLight(0xffffff,0x776A60,0.75));
 const sun=new THREE.DirectionalLight(0xffffff,0.75); sun.position.set(-300,600,400); scene.add(sun);
 const fill=new THREE.DirectionalLight(0xffffff,0.25); fill.position.set(400,200,-300); scene.add(fill);
 
@@ -259,7 +398,7 @@ let grid=null, group=new THREE.Group(), laptop=null, firstFrame=true;
 scene.add(group);
 
 function applyTheme(){
-  standMat.color.set(css('--accent'));
+  standMat.color.set(css('--stand'));
   edgeMat.color.set(css('--ink'));
   laptopMat.color.set(css('--laptop'));
   if(grid){scene.remove(grid);grid.geometry.dispose();}
@@ -282,22 +421,105 @@ function setTheme(t){
 $('vTheme').onclick=()=>setTheme(THEMES[(THEMES.indexOf(currentTheme())+1)%THEMES.length]);
 setTheme(currentTheme());
 
-function makeShape(pr){
-  const sh=new THREE.Shape(pr.outer.map(q=>new THREE.Vector2(q[0],q[1])));
-  pr.holes.forEach(h=>sh.holes.push(new THREE.Path(h.map(q=>new THREE.Vector2(q[0],q[1])))));
-  return sh;
+/* Side piece mesh: the profile extruded to the piece width, with blind pockets cut pocketD deep into the top face
+   (z = width). Built face by face so it is one closed, outward-facing mesh:
+   bottom cap (outline), top cap (outline minus pockets), outer walls, pocket walls and pocket floors.
+   mirror = flip the profile in x: the other side piece, so its pockets also face up for printing. */
+function sideGeometry(pr,mirror){
+  const W=P.width, D=pr.pocketD, zf=W-D;
+  const mx=q=>[mirror?-q[0]:q[0], q[1]];
+  let outer=pr.outer.map(mx); if(polyArea(outer)<0) outer.reverse();        // CCW
+  const holes=pr.holes.map(h=>{h=h.map(mx); if(polyArea(h)>0) h.reverse(); return h;}); // CW
+  const pos=[];
+  const tri=(a,b,c)=>pos.push(...a,...b,...c);
+  // Cap triangles with the right winding: up = counter-clockwise seen from +z.
+  const cap=(contour,hs,z,up)=>{
+    const V=[contour,...hs].flat();
+    for(const f of THREE.ShapeUtils.triangulateShape(contour.map(q=>new THREE.Vector2(...q)),hs.map(h=>h.map(q=>new THREE.Vector2(...q))))){
+      let [a,b,c]=f.map(i=>[...V[i],z]);
+      const ccw=(b[0]-a[0])*(c[1]-a[1])-(b[1]-a[1])*(c[0]-a[0])>0;
+      if(ccw!==up) [b,c]=[c,b];
+      tri(a,b,c);
+    }
+  };
+  // Walls: for a loop traversed so that material is on its left, (a0,b0,b1) faces away from the material.
+  const walls=(loop,z0,z1)=>{
+    for(let i=0;i<loop.length;i++){
+      const a=loop[i], b=loop[(i+1)%loop.length];
+      tri([...a,z0],[...b,z0],[...b,z1]); tri([...a,z0],[...b,z1],[...a,z1]);
+    }
+  };
+  cap(outer,[],0,false);                     // bottom (outer face)
+  cap(outer,holes,W,true);                   // top (inner face, with pocket openings)
+  walls(outer,0,W);
+  for(const h of holes){ walls(h,zf,W); cap(h.slice().reverse(),[],zf,true); }  // pocket walls + floor
+  const g=new THREE.BufferGeometry();
+  g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
+  g.computeVertexNormals();
+  return g;
 }
-// Preview spacing between the pieces' inner faces: outer faces sit ~50 mm in from each side of the laptop.
-const pieceGap=()=>Math.max(80,P.lapW-2*P.width-100);
+/* Crossbar: a plain rectangular bar (barW along the beam × barTh across it) whose ends sit in the pockets.
+   Length = spacing + both pockets, minus the clearance so it bottoms out without forcing the sides apart.
+   All four edges at each end get a 45° chamfer: a lead-in for the pocket, and clearance for first-layer squish.
+   Coordinates: x along the bar (0..L), y across its width (±W/2), z through its thickness (0..T). Prints flat. */
+function barProfile(pr){
+  const W=P.barW, T=P.barTh, L=P.gap+2*pr.pocketD-P.barFit;
+  const c=Math.max(0,Math.min(P.barChamfer, Math.min(W,T)/2-0.5, L/4));
+  const pts=[[0,-W/2],[L,-W/2],[L,W/2],[0,W/2]];                 // footprint, used for bed packing
+  // prismatoid volume of each chamfered end: h/6·(A_end + A_full + 4·A_mid)
+  const vol=(L-2*c)*W*T + 2*(c/6)*((W-2*c)*(T-2*c) + W*T + 4*(W-c)*(T-c));
+  return {pts,L,b:W/2,c,vol};
+}
+function barGeometry(bp){
+  const W=P.barW, T=P.barTh, L=bp.L, c=bp.c;
+  const ring=(x,i)=>[[x,-W/2+i,i],[x,W/2-i,i],[x,W/2-i,T-i],[x,-W/2+i,T-i]];
+  const rings=c>0?[ring(0,c),ring(c,0),ring(L-c,0),ring(L,c)]:[ring(0,0),ring(L,0)];
+  const ctr=[L/2,0,T/2], pos=[];
+  // Convex solid: orient every triangle so its normal points away from the centre.
+  const tri=(a,b,d)=>{
+    const u=[b[0]-a[0],b[1]-a[1],b[2]-a[2]], v=[d[0]-a[0],d[1]-a[1],d[2]-a[2]];
+    const nrm=[u[1]*v[2]-u[2]*v[1], u[2]*v[0]-u[0]*v[2], u[0]*v[1]-u[1]*v[0]];
+    const m=[(a[0]+b[0]+d[0])/3-ctr[0],(a[1]+b[1]+d[1])/3-ctr[1],(a[2]+b[2]+d[2])/3-ctr[2]];
+    if(nrm[0]*m[0]+nrm[1]*m[1]+nrm[2]*m[2]<0) [b,d]=[d,b];
+    pos.push(...a,...b,...d);
+  };
+  for(let r=0;r+1<rings.length;r++) for(let j=0;j<4;j++){
+    const A=rings[r][j], B=rings[r][(j+1)%4], C=rings[r+1][(j+1)%4], D=rings[r+1][j];
+    tri(A,B,C); tri(A,C,D);
+  }
+  for(const R of [rings[0],rings[rings.length-1]]){ tri(R[0],R[1],R[2]); tri(R[0],R[2],R[3]); }  // end faces
+  const g=new THREE.BufferGeometry();
+  g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
+  g.computeVertexNormals();
+  return g;
+}
+
 function rebuild(pr){
   group.children.slice().forEach(o=>{group.remove(o);o.geometry&&o.geometry.dispose();});
-  const geo=new THREE.ExtrudeGeometry(makeShape(pr),{depth:P.width,bevelEnabled:false});
+  const geo=sideGeometry(pr,false), geoB=sideGeometry(pr,true);
   const edges=new THREE.EdgesGeometry(geo,20);
-  const gap=pieceGap();
-  [-gap/2-P.width, gap/2].forEach(z=>{
-    const m=new THREE.Mesh(geo,standMat); m.position.z=z; group.add(m);
-    const e=new THREE.LineSegments(edges,edgeMat); e.position.z=z; group.add(e);
+  // Left piece: pockets on its top (z = width) face the middle. Right piece: the same mesh mirrored in z,
+  // so its pockets face the middle too (the printed right piece is the x-mirrored mesh, pockets up).
+  [[-P.gap/2-P.width,1],[P.gap/2+P.width,-1]].forEach(([z,sz])=>{
+    const m=new THREE.Mesh(geo,standMat); m.position.z=z; m.scale.z=sz; group.add(m);
+    const e=new THREE.LineSegments(edges,edgeMat); e.position.z=z; e.scale.z=sz; group.add(e);
   });
+  // crossbars in their pockets: bar length → world Z, bar width → along the beam, bar thickness → across it
+  let bar=null;
+  if(pr.slots.length){
+    const bp=barProfile(pr); bar={bp,geo:barGeometry(bp)};
+    const be=new THREE.EdgesGeometry(bar.geo,20);
+    for(const sl of pr.slots){
+      const basis=new THREE.Matrix4().makeBasis(new THREE.Vector3(0,0,1),new THREE.Vector3(1,0,0),new THREE.Vector3(0,1,0));
+      const M=new THREE.Matrix4().makeTranslation(sl.x,sl.y,0)
+        .multiply(new THREE.Matrix4().makeRotationZ(sl.ang))                 // match the slot's rotation
+        .multiply(new THREE.Matrix4().makeTranslation(0,-P.barTh/2,-bp.L/2)) // centre the bar on the pocket
+        .multiply(basis);
+      for(const o of [new THREE.Mesh(bar.geo,standMat), new THREE.LineSegments(be,edgeMat)]){
+        o.matrixAutoUpdate=false; o.matrix.copy(M); group.add(o);
+      }
+    }
+  }
   // laptop ghost at its real size, front edge against the lip
   const len=P.lapD, thick=pr.ghostT, wid=P.lapW;
   const lg=new THREE.BoxGeometry(len,thick,wid);
@@ -305,7 +527,7 @@ function rebuild(pr){
   laptop.position.set(pr.L1[0]+pr.u[0]*len/2+pr.n[0]*thick/2, pr.L1[1]+pr.u[1]*len/2+pr.n[1]*thick/2, 0);
   laptop.rotation.z=pr.th; laptop.visible=P.showLaptop; group.add(laptop);
   if(grid) grid.position.x=gridX();
-  return geo;
+  return {side:geo, sideB:geoB, bar};
 }
 let lastView='34';
 function setView(kind){
@@ -331,50 +553,165 @@ new ResizeObserver(resize).observe(view);
 (function loop(){controls.update();renderer.render(scene,camera);requestAnimationFrame(loop);})();
 
 /* ---------- update ---------- */
-let current=null, currentGeo=null;
+let current=null, currentGeo=null, packTimer=null;
+function renderWarns(){
+  const all=[...(current.warns||[]), ...(current.layoutWarn?[current.layoutWarn]:[])];
+  $('warn').hidden=!all.length; $('warn').textContent=all.join(' ');
+}
 function update(){
   current=profile(P);
   currentGeo=rebuild(current);
   const bb=current.bb, w=bb.x1-bb.x0, h=bb.y1-bb.y0;
-  const volCm3=current.netArea*P.width/1000*P.count;
+  const parts=partList(), bp=currentGeo.bar&&currentGeo.bar.bp;
+  const volCm3=parts.reduce((v,pt)=>v+(pt.kind==='side'?current.sideVol:bp.vol),0)/1000;
   const rows=[
     ['Rear height',f1(current.H)+' mm'],
     ['Laptop surface',f1(current.supportLen)+' mm'],
     ['Hook opening',f1(current.hookH)+' mm'],
     ['Supported',Math.round(Math.min(1,current.supportLen/P.lapD)*100)+'%'],
     ['Piece footprint',`${f1(w)} × ${f1(h)} × ${P.width}`],
-    ['Solid volume',f1(volCm3)+' cm³'],
+    ...(bp?[['Crossbars',`${current.slots.length} × ${f1(bp.L)} mm`]]:[]),
+    ['Volume in file',f1(volCm3)+' cm³'],
     ['PLA at 100%',f1(volCm3*1.24)+' g'],
   ];
   $('readout').innerHTML=rows.map(r=>`<dt>${r[0]}</dt><dd>${r[1]}</dd>`).join('');
   const warns=[];
-  if(current.supportLen<0.55*P.lapD) warns.push('Less than about half the laptop is supported, so it could tip backwards. Increase base depth.');
   if(current.supportLen<0.5*P.lapD) warns.push('Less than half the laptop is on the slope, so it could tip backwards off the top. Increase the laptop surface.');
   if(current.legCramped) warns.push('The laptop surface is short for this angle, so the leg meets the hook and the piece is solid underneath. Lengthen the laptop surface to open it up.');
   if(current.legWidened&&!current.legCramped) warns.push('The flat top is longer than the rear leg is thick, so the leg was widened to sit under it.');
   if(current.gussetClamped) warns.push('Top reinforcement was reduced to fit between the leg and the hook.');
-  if(Math.max(w,h)>BED) warns.push(`Each piece is ${f1(Math.max(w,h))} mm long. Check it fits your bed, or print it diagonally.`);
-  if(P.count===2 && h*2+10>BED) warns.push('Two pieces side by side may not fit a 250 mm bed. Export one piece and print twice.');
-  $('warn').hidden=!warns.length; $('warn').textContent=warns.join(' ');
+  if(current.missing.length) warns.push(`No room for the ${current.missing.map(k=>BAR_NAME[k]).join(' and ')} crossbar pocket: it needs the beam or leg to be at least ${f1(P.barTh+P.barFit+2*SLOT_WALL)} mm thick${current.legCramped?' with a clear stretch for it, so also lengthen the laptop surface':''}. Thicken it, or use a smaller bar.`);
+  if(P.count===0&&!parts.length) warns.push('No crossbars are switched on, so the file would be empty.');
+  current.warns=warns; renderWarns();
+  clearTimeout(packTimer); packTimer=setTimeout(showLayout,200);   // packing is slower, so it runs once you pause
   if(firstFrame){applyTheme();setView('34');firstFrame=false;}
   $('status').textContent='';
+  saveSettings();
 }
 
-/* ---------- export: 3MF + STL ---------- */
-// Both formats lay the profile flat on the bed (Z up) with pieces side by side along Y.
-function pieceOffsets(){
-  const pitch=current.bb.y1+10, offs=[];
-  for(let i=0;i<P.count;i++) offs.push([-current.bb.x0, i*pitch, 0]);
-  return offs;
+/* ---------- bed layout: pack every part onto one square bed ---------- */
+// "Pieces in file": 2 = both sides + crossbars, 1 = one side only, 0 = crossbars only.
+// Parts are placed bottom-left first. Each may turn in 90° steps; side pieces may also be turned over
+// (180° about X), which lets the second side nest upside down into the first. Both moves are rotations,
+// so meshes stay outward-facing.
+const PACK_GAP=5, PACK_STEP=2;
+function partList(){
+  const parts=[], nSides=P.count===1?1:P.count===2?2:0;
+  // The two sides are mirror images (pockets on their inner faces); both are exported pockets-up.
+  const mirrored=current.outer.map(q=>[-q[0],q[1]]).reverse();
+  for(let i=0;i<nSides;i++) parts.push({kind:'side', geo:i?'sideB':'side', name:i?'Side piece (right)':'Side piece (left)', poly:i?mirrored:current.outer, th:P.width});
+  if(P.count!==1&&currentGeo&&currentGeo.bar){
+    const bp=currentGeo.bar.bp;
+    current.slots.forEach(sl=>parts.push({kind:'bar', geo:'bar', name:'Crossbar ('+BAR_NAME[sl.k]+')', poly:bp.pts, th:P.barTh}));
+  }
+  return parts;
+}
+function orient(poly,k,flip){
+  return poly.map(([x,y])=>{let X=x, Y=flip?-y:y; for(let i=0;i<k;i++){const t=X; X=-Y; Y=t;} return [X,Y];});
+}
+const boxOf=poly=>{let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;for(const [x,y] of poly){if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y;}return {x0,y0,x1,y1};};
+function inPoly(q,poly){
+  let inside=false;
+  for(let i=0,j=poly.length-1;i<poly.length;j=i++){const a=poly[i],b=poly[j];
+    if((a[1]>q[1])!==(b[1]>q[1]) && q[0]<(b[0]-a[0])*(q[1]-a[1])/(b[1]-a[1])+a[0]) inside=!inside;}
+  return inside;
+}
+function ptSegDist(p,a,b){
+  const dx=b[0]-a[0], dy=b[1]-a[1], L=dx*dx+dy*dy;
+  let t=L?((p[0]-a[0])*dx+(p[1]-a[1])*dy)/L:0; t=Math.max(0,Math.min(1,t));
+  return Math.hypot(p[0]-a[0]-t*dx, p[1]-a[1]-t*dy);
+}
+function segsCross(a,b,c,d){
+  const o=(p,q,r)=>(q[0]-p[0])*(r[1]-p[1])-(q[1]-p[1])*(r[0]-p[0]);
+  return o(a,b,c)*o(a,b,d)<0 && o(c,d,a)*o(c,d,b)<0;
+}
+// Closer than the gap anywhere (or overlapping)?
+function tooClose(A,Ab,B,Bb,g){
+  if(Ab.x0>Bb.x1+g||Bb.x0>Ab.x1+g||Ab.y0>Bb.y1+g||Bb.y0>Ab.y1+g) return false;
+  if(inPoly(A[0],B)||inPoly(B[0],A)) return true;
+  for(let i=0;i<A.length;i++){
+    const a=A[i], b=A[(i+1)%A.length];
+    if(Math.min(a[0],b[0])>Bb.x1+g||Math.max(a[0],b[0])<Bb.x0-g||Math.min(a[1],b[1])>Bb.y1+g||Math.max(a[1],b[1])<Bb.y0-g) continue;
+    for(let j=0;j<B.length;j++){
+      const c=B[j], d=B[(j+1)%B.length];
+      if(segsCross(a,b,c,d)||ptSegDist(a,c,d)<g||ptSegDist(b,c,d)<g||ptSegDist(c,a,b)<g||ptSegDist(d,a,b)<g) return true;
+    }
+  }
+  return false;
+}
+let packCache={key:null,res:null};
+function packLayout(){
+  const list=partList(), B=P.bed;
+  const key=[B,P.count,P.width,P.barTh,current.outer.map(q=>q[0].toFixed(2)+','+q[1].toFixed(2)).join(';'),
+             list.filter(p=>p.kind==='bar').length, currentGeo.bar?currentGeo.bar.bp.pts.join(';'):''].join('|');
+  if(packCache.key===key) return packCache.res;
+  const placed=[], unplaced=[];
+  for(const pt of list){
+    let best=null;
+    // No turning over: sides must stay pockets-up, and bars are symmetric.
+    for(const flip of [false]) for(const k of pt.kind==='side'?[0,1,2,3]:[0,1]){
+      const o=orient(pt.poly,k,flip), ob=boxOf(o), w=ob.x1-ob.x0, h=ob.y1-ob.y0;
+      if(w>B||h>B) continue;
+      const base=o.map(q=>[q[0]-ob.x0,q[1]-ob.y0]);
+      scan: for(let y=0;y<=B-h+1e-9;y+=PACK_STEP){
+        if(best&&y>best.y) break;
+        for(let x=0;x<=B-w+1e-9;x+=PACK_STEP){
+          if(best&&y===best.y&&x>=best.x) break;
+          const cand=base.map(q=>[q[0]+x,q[1]+y]), cb={x0:x,y0:y,x1:x+w,y1:y+h};
+          if(placed.some(pl=>tooClose(cand,cb,pl.poly,pl.bb,PACK_GAP))) continue;
+          best={x,y,k,flip,poly:cand,bb:cb,shift:[x-ob.x0,y-ob.y0]}; break scan;
+        }
+      }
+    }
+    if(best) placed.push({...pt,...best}); else unplaced.push(pt);
+  }
+  // Anything that didn't fit goes in rows beyond the bed, so the file still holds every part.
+  let y=B+20;
+  for(const pt of unplaced){
+    const ob=boxOf(pt.poly);
+    placed.push({...pt,k:0,flip:false,shift:[-ob.x0,y-ob.y0],poly:pt.poly.map(q=>[q[0]-ob.x0,q[1]-ob.y0+y]),bb:{x0:0,y0:y,x1:ob.x1-ob.x0,y1:y+ob.y1-ob.y0},offBed:true});
+    y+=ob.y1-ob.y0+10;
+  }
+  const used=boxOf(placed.filter(p=>!p.offBed).flatMap(p=>p.poly).concat([[0,0]]));
+  packCache={key,res:{placed,unplaced,used}};
+  return packCache.res;
+}
+// Placement → 3D: turn over (optional), quarter-turns about Z, then move onto the bed.
+function partMatrix(pt){
+  const M=new THREE.Matrix4().makeTranslation(pt.shift[0],pt.shift[1],pt.flip?pt.th:0);
+  M.multiply(new THREE.Matrix4().makeRotationZ(pt.k*Math.PI/2));
+  if(pt.flip) M.multiply(new THREE.Matrix4().makeRotationX(Math.PI));
+  return M;
+}
+function fileParts(){
+  return packLayout().placed.map(pt=>({...pt, M:partMatrix(pt)}));
+}
+const partGeo=pt=>(pt.geo==='bar'?currentGeo.bar.geo:currentGeo[pt.geo]).clone().applyMatrix4(pt.M);
+
+// Small top-down drawing of the packed bed, plus the layout warning.
+function showLayout(){
+  if(!current) return;
+  const {placed,unplaced,used}=packLayout(), B=P.bed, pad=B*0.04, vb=B+2*pad;
+  const svg=$('bedview'); svg.setAttribute('viewBox',`${-pad} ${-pad} ${vb} ${vb}`);
+  const Y=y=>B-y;   // bed drawing: y up
+  svg.innerHTML=`<rect class="bed" x="0" y="0" width="${B}" height="${B}" rx="${B*0.02}"/>`+
+    placed.filter(p=>!p.offBed).map(p=>`<polygon class="${p.kind}" points="${p.poly.map(q=>q[0].toFixed(1)+','+Y(q[1]).toFixed(1)).join(' ')}"><title>${p.name}</title></polygon>`).join('');
+  const n=placed.length-unplaced.length;
+  $('bedinfo').textContent=!placed.length?'Nothing to print.':
+    unplaced.length?`${n} of ${placed.length} parts fit a ${B} mm bed.`:
+    `All ${placed.length} parts fit a ${B} mm bed (using ${Math.round(used.x1)} × ${Math.round(used.y1)} mm).`;
+  current.layoutWarn=unplaced.length?`${unplaced.map(p=>p.name).join(', ')} ${unplaced.length>1?"don't":"doesn't"} fit on the ${B} mm bed with the rest, so ${unplaced.length>1?'they are':'it is'} placed off the bed in the file. Export it separately (Pieces in file), or check the bed size.`:null;
+  renderWarns();
 }
 
-function stlBinary(geo,offsets){
-  const g=geo.index?geo.toNonIndexed():geo, pos=g.attributes.position.array, nt=pos.length/9;
-  const buf=new ArrayBuffer(84+50*nt*offsets.length), dv=new DataView(buf);
+function stlBinary(parts){
+  const soups=parts.map(pt=>{const g=partGeo(pt); return {pos:(g.index?g.toNonIndexed():g).attributes.position.array, off:[0,0,0]};});
+  const nt=soups.reduce((n,sp)=>n+sp.pos.length/9,0);
+  const buf=new ArrayBuffer(84+50*nt), dv=new DataView(buf);
   const hdr='laptop stand '+P.angle+'deg'; for(let i=0;i<hdr.length&&i<80;i++)dv.setUint8(i,hdr.charCodeAt(i));
-  dv.setUint32(80,nt*offsets.length,true);
+  dv.setUint32(80,nt,true);
   let o=84;
-  for(const off of offsets){
+  for(const {pos,off} of soups){
     for(let i=0;i<pos.length;i+=9){
       const a=[pos[i]+off[0],pos[i+1]+off[1],pos[i+2]+off[2]],b=[pos[i+3]+off[0],pos[i+4]+off[1],pos[i+5]+off[2]],c=[pos[i+6]+off[0],pos[i+7]+off[1],pos[i+8]+off[2]];
       const ux=b[0]-a[0],uy=b[1]-a[1],uz=b[2]-a[2],vx=c[0]-a[0],vy=c[1]-a[1],vz=c[2]-a[2];
@@ -404,34 +741,34 @@ function weldMesh(geo,off){
 }
 
 const xmlEsc=s=>String(s).replace(/[<>&"']/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&apos;'}[c]));
-function model3mf(geo,offsets){
+function model3mf(parts){
   const n=v=>+v.toFixed(4);
-  const objects=offsets.map((off,i)=>{
-    const m=weldMesh(geo,off);
+  const objects=parts.map((pt,i)=>{
+    const m=weldMesh(partGeo(pt),[0,0,0]);
     const vs=m.verts.map(v=>`<vertex x="${n(v[0])}" y="${n(v[1])}" z="${n(v[2])}"/>`).join('');
     const ts=m.tris.map(t=>`<triangle v1="${t[0]}" v2="${t[1]}" v3="${t[2]}"/>`).join('');
-    return `<object id="${i+1}" type="model" name="${xmlEsc('Side piece '+(i+1))}"><mesh><vertices>${vs}</vertices><triangles>${ts}</triangles></mesh></object>`;
+    return `<object id="${i+1}" type="model" name="${xmlEsc(pt.name)}"><mesh><vertices>${vs}</vertices><triangles>${ts}</triangles></mesh></object>`;
   }).join('');
-  const items=offsets.map((_,i)=>`<item objectid="${i+1}"/>`).join('');
+  const items=parts.map((_,i)=>`<item objectid="${i+1}"/>`).join('');
   const lap=$('preset').value==='custom'?'custom laptop':$('preset').selectedOptions[0].text;
-  const desc=`angle ${P.angle}°, slope ${P.suppLen}, beam ${P.beamT}, leg ${P.legT}, reinforcement ${P.gusset}, flat top ${P.topFlat}, lip ${P.lipT}, padding ${P.pad}, wrap-over ${P.wrap}×${P.wrapT}, width ${P.width}; ${lap} ${P.lapD}×${P.lapW}, base ${P.lapB} mm`;
+  const desc=`angle ${P.angle}°, slope ${P.suppLen}, beam ${P.beamT}, leg ${P.legT} leaning ${P.legLean}°, reinforcement ${P.gusset}, flat top ${P.topFlat}, lip ${P.lipT}, padding ${P.pad}, wrap-over ${P.wrap}×${P.wrapT}, width ${P.width}; crossbars ${current.slots.map(sl=>BAR_NAME[sl.k]).join(', ')||'none'} (${P.barW}×${P.barTh} in ${current.pocketD} mm pockets, chamfer ${P.barChamfer}, clearance ${P.barFit}, spacing ${P.gap}); ${lap} ${P.lapD}×${P.lapW}, base ${P.lapB} mm`;
   return `<?xml version="1.0" encoding="UTF-8"?>
 <model unit="millimeter" xml:lang="en-US" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02">
-<metadata name="Title">Laptop stand side pieces</metadata>
-<metadata name="Application">Laptop Stand Maker</metadata>
+<metadata name="Title">Laptop stand parts</metadata>
+<metadata name="Application">BUAS Laptop Stand Maker</metadata>
 <metadata name="Description">${xmlEsc(desc)}</metadata>
 <resources>${objects}</resources>
 <build>${items}</build>
 </model>`;
 }
-function file3mf(geo,offsets){
+function file3mf(parts){
   const enc=s=>new TextEncoder().encode(s);
   return zipFiles([
     {name:'[Content_Types].xml',data:enc(`<?xml version="1.0" encoding="UTF-8"?>
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="model" ContentType="application/vnd.ms-package.3dmanufacturing-3dmodel+xml"/></Types>`)},
     {name:'_rels/.rels',data:enc(`<?xml version="1.0" encoding="UTF-8"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Target="/3D/3dmodel.model" Id="rel0" Type="http://schemas.microsoft.com/3dmanufacturing/2013/01/3dmodel"/></Relationships>`)},
-    {name:'3D/3dmodel.model',data:enc(model3mf(geo,offsets))},
+    {name:'3D/3dmodel.model',data:enc(model3mf(parts))},
   ]);
 }
 
@@ -475,10 +812,10 @@ function browserSave(filename,blob){
   setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 const EXPORTS={
-  '3mf':()=>({filename:baseName()+'.3mf', blob:file3mf(currentGeo,pieceOffsets()), done:'3MF saved.'}),
+  '3mf':()=>({filename:baseName()+'.3mf', blob:file3mf(fileParts()), done:'3MF saved.'}),
   // Plain .stl in a normal browser; zipped inside the artifact host, which is stricter about file types.
   'stl':host=>{
-    const stl=stlBinary(currentGeo,pieceOffsets());
+    const stl=stlBinary(fileParts());
     return host?{filename:baseName()+'.zip', blob:zipFiles([{name:baseName()+'.stl',data:stl}]), done:'Saved. Unzip to get the STL.'}
                :{filename:baseName()+'.stl', blob:new Blob([stl],{type:'model/stl'}), done:'STL saved.'};
   },
@@ -486,6 +823,7 @@ const EXPORTS={
 async function exportFile(kind,btn){
   btn.disabled=true; $('status').textContent='Preparing file…';
   try{
+    if(!fileParts().length){$('status').textContent='Nothing to export: switch on a crossbar or include the sides.';return;}
     const dl=await dlPromise, f=EXPORTS[kind](!!dl);
     if(!dl){browserSave(f.filename,f.blob);$('status').textContent=f.done;return;}
     const res=await dl.save({filename:f.filename,data:f.blob});
