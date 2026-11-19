@@ -1,0 +1,395 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Laptop Stand Maker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="styles.css">
+<script>
+  // Apply the saved theme before first paint to avoid a flash. "auto" = follow the OS.
+  try { const t = localStorage.getItem('theme'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch (e) {}
+</script>
+</head>
+<body>
+<div class="app">
+  <aside class="rail">
+    <div>
+      <h1>Laptop Stand Maker</h1>
+      <p class="sub">Triangle side supports, printed flat. Units in mm.</p>
+    </div>
+
+    <fieldset>
+      <legend>Your laptop</legend>
+      <div class="toggles"><label for="preset">Model <select id="preset"></select></label></div>
+      <div class="row"><label for="lapD">Depth <small>front to back</small></label><input type="range" id="lapD-r"><div class="num"><input id="lapD" inputmode="decimal"><span>mm</span></div></div>
+      <div class="row"><label for="lapW">Width <small>side to side</small></label><input type="range" id="lapW-r"><div class="num"><input id="lapW" inputmode="decimal"><span>mm</span></div></div>
+      <div class="row"><label for="lapT">Front edge thickness <small>lid closed</small></label><input type="range" id="lapT-r"><div class="num"><input id="lapT" inputmode="decimal"><span>mm</span></div></div>
+      <div class="toggles"><label for="use">Use <select id="use">
+        <option value="10">Mostly typing · 10°</option>
+        <option value="15" selected>Balanced · 15°</option>
+        <option value="25">Raised screen · 25°</option>
+        <option value="custom" hidden>Custom angle</option>
+      </select></label></div>
+      <p class="hint">Model sizes are approximate, so measure yours if you can. Changing the laptop re-fits base depth and lip height; tweak them freely afterwards.</p>
+    </fieldset>
+
+    <fieldset>
+      <legend>Stand</legend>
+      <div class="row"><label for="angle">Tilt angle</label><input type="range" id="angle-r"><div class="num"><input id="angle" inputmode="decimal"><span>°</span></div></div>
+      <div class="row"><label for="depth">Base depth <small>front to back</small></label><input type="range" id="depth-r"><div class="num"><input id="depth" inputmode="decimal"><span>mm</span></div></div>
+      <div class="row"><label for="strut">Strut thickness</label><input type="range" id="strut-r"><div class="num"><input id="strut" inputmode="decimal"><span>mm</span></div></div>
+      <div class="row"><label for="width">Piece width <small>print height</small></label><input type="range" id="width-r"><div class="num"><input id="width" inputmode="decimal"><span>mm</span></div></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Front lip</legend>
+      <div class="row"><label for="lipH">Lip height</label><input type="range" id="lipH-r"><div class="num"><input id="lipH" inputmode="decimal"><span>mm</span></div></div>
+      <div class="row"><label for="lipT">Lip thickness</label><input type="range" id="lipT-r"><div class="num"><input id="lipT" inputmode="decimal"><span>mm</span></div></div>
+      <p class="hint">Keep the lip lower than your laptop's front edge so it doesn't press on the palm rest.</p>
+    </fieldset>
+
+    <fieldset>
+      <legend>Options</legend>
+      <div class="toggles">
+        <label><input type="checkbox" id="brace" checked> Centre brace</label>
+        <label><input type="checkbox" id="showLaptop" checked> Show laptop</label>
+      </div>
+      <div class="toggles"><label for="count">Pieces in file <select id="count"><option value="2" selected>2</option><option value="1">1</option></select></label></div>
+    </fieldset>
+
+    <div class="actions">
+      <button class="primary" id="dl">Download STL (.zip)</button>
+      <button id="scad">Copy as OpenSCAD</button>
+      <p class="status" id="status" role="status"></p>
+    </div>
+  </aside>
+
+  <section class="stage">
+    <div id="view"></div>
+    <dl class="readout" id="readout"></dl>
+    <div class="viewtools"><button id="vSide">Side</button><button id="v34">3/4</button><span class="sep" aria-hidden="true"></span><button id="vTheme" title="Switch theme: Auto → Light → Dark">Auto</button></div>
+    <div class="warn" id="warn" hidden></div>
+  </section>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+const SPEC = {
+  angle:{min:5,max:35,step:1,v:15},
+  depth:{min:100,max:260,step:1,v:180},
+  strut:{min:3,max:15,step:0.5,v:6},
+  width:{min:8,max:40,step:1,v:18},
+  lipH:{min:4,max:30,step:0.5,v:10},
+  lipT:{min:3,max:12,step:0.5,v:5},
+  lapD:{min:150,max:320,step:0.5,v:225},
+  lapW:{min:220,max:420,step:0.5,v:320},
+  lapT:{min:6,max:40,step:0.5,v:18},
+};
+const P = {brace:true, count:2, showLaptop:true};
+for (const k in SPEC) P[k]=SPEC[k].v;
+const $ = id => document.getElementById(id);
+const f1 = x => (Math.round(x*10)/10).toString();
+const BED = 250;          // assumed print bed edge, mm
+const SUPPORT_FRAC = 0.8; // fit: support this share of the laptop's depth
+
+/* ---------- laptop presets (approximate published dimensions, mm) ---------- */
+const LAPTOPS = [
+  {group:'Generic', id:'g13', name:'13″ ultrabook', d:210, w:300, t:15},
+  {group:'Generic', id:'g14', name:'14″ laptop',    d:225, w:320, t:18},
+  {group:'Generic', id:'g15', name:'15.6″ laptop',  d:250, w:360, t:22},
+  {group:'Generic', id:'g17', name:'16–17″ gaming', d:270, w:395, t:28},
+  {group:'Apple',   id:'mba13', name:'MacBook Air 13″ (M2+)', d:215,   w:304.1, t:11.3},
+  {group:'Apple',   id:'mba15', name:'MacBook Air 15″',       d:237.6, w:340.4, t:11.5},
+  {group:'Apple',   id:'mbp14', name:'MacBook Pro 14″',       d:221.2, w:312.6, t:15.5},
+  {group:'Apple',   id:'mbp16', name:'MacBook Pro 16″',       d:248.1, w:355.7, t:16.8},
+  {group:'Other',   id:'xps13', name:'Dell XPS 13',           d:199.1, w:295.3, t:15.3},
+  {group:'Other',   id:'xps15', name:'Dell XPS 15',           d:230.1, w:344.7, t:18},
+  {group:'Other',   id:'x1c',   name:'ThinkPad X1 Carbon',    d:222.5, w:315.6, t:15.4},
+  {group:'Other',   id:'fw13',  name:'Framework Laptop 13',   d:229,   w:296.6, t:15.9},
+];
+const DEFAULT_PRESET='g14';
+(function buildPresetSelect(){
+  const sel=$('preset'), groups={};
+  sel.add(new Option('Custom size','custom'));
+  for(const l of LAPTOPS){
+    if(!groups[l.group]){groups[l.group]=document.createElement('optgroup');groups[l.group].label=l.group;sel.appendChild(groups[l.group]);}
+    groups[l.group].appendChild(new Option(l.name,l.id));
+  }
+  sel.value=DEFAULT_PRESET;
+})();
+
+/* ---------- controls ---------- */
+const clampTo=(k,v)=>Math.min(SPEC[k].max,Math.max(SPEC[k].min,v));
+function setParam(k,v){P[k]=v;$(k).value=v;$(k+'-r').value=v;}
+for (const k in SPEC){
+  const s=SPEC[k], r=$(k+'-r'), n=$(k);
+  Object.assign(r,{min:s.min,max:s.max,step:s.step,value:s.v}); n.value=s.v;
+  const commit=v=>{setParam(k,v);onParam(k);};
+  r.addEventListener('input',()=>commit(+r.value));
+  n.addEventListener('change',()=>{let v=parseFloat(n.value);if(!isFinite(v))v=P[k];commit(clampTo(k,v));});
+}
+function onParam(k){
+  if(k.startsWith('lap')){$('preset').value='custom';fitStand();}
+  if(k==='angle') syncUse();
+  update();
+}
+
+/* Fit the stand to the laptop: lip ≈ 60% of the front edge, support ≈ 80% of its depth, piece within the bed. */
+function fitStand(){
+  const th=P.angle*Math.PI/180, s=Math.sin(th), c=Math.cos(th);
+  setParam('lipH',clampTo('lipH',Math.round(P.lapT*0.6*2)/2));
+  const wantD=(SUPPORT_FRAC*P.lapD+P.lipT)*c;   // supportLen = D/cos − lipT
+  const bedD=BED-2-s*P.lipH;                     // footprint = D + lip overhang at the front
+  setParam('depth',clampTo('depth',Math.round(Math.min(wantD,bedD))));
+}
+function syncUse(){
+  const match=[...$('use').options].some(o=>o.value===String(P.angle));
+  $('use').value=match?String(P.angle):'custom';
+}
+function applyPreset(id){
+  const l=LAPTOPS.find(x=>x.id===id); if(!l) return;
+  setParam('lapD',l.d); setParam('lapW',l.w); setParam('lapT',l.t);
+  fitStand();
+}
+$('preset').addEventListener('change',e=>{applyPreset(e.target.value);update();setView(lastView);});
+$('use').addEventListener('change',e=>{if(e.target.value==='custom')return;setParam('angle',+e.target.value);fitStand();update();});
+applyPreset(DEFAULT_PRESET);
+$('brace').addEventListener('change',e=>{P.brace=e.target.checked;update();});
+$('showLaptop').addEventListener('change',e=>{P.showLaptop=e.target.checked;if(laptop)laptop.visible=P.showLaptop;});
+$('count').addEventListener('change',e=>{P.count=+e.target.value;update();});
+
+/* ---------- profile geometry (x = depth, y = up) ---------- */
+function profile(p){
+  const th=p.angle*Math.PI/180, s=Math.sin(th), c=Math.cos(th);
+  const D=p.depth, t=p.strut, H=D*s/c;
+  const u=[c,s], n=[-s,c];
+  const L1=[u[0]*p.lipT,u[1]*p.lipT];
+  const L2=[L1[0]+n[0]*p.lipH, L1[1]+n[1]*p.lipH];
+  const L3=[n[0]*p.lipH, n[1]*p.lipH];
+  const outer=[[D,0],[D,H],L1,L2,L3,[0,0]];
+  const yh=x=>(x*s-t)/c;               // inner offset of the support surface
+  const xf=t*(1+c)/s, xb=D-t, yt=yh(xb);
+  const holes=[]; const MIN=2;
+  if (xb-xf>MIN && yt-t>MIN){
+    if (p.brace){
+      const xm=(xf+xb)/2, a=xm-t/2, b=xm+t/2;
+      if (a-xf>MIN && yh(a)-t>MIN) holes.push([[xf,t],[a,t],[a,yh(a)]]);
+      if (xb-b>MIN && yt-t>MIN) holes.push(yh(b)-t>0.01?[[b,t],[xb,t],[xb,yt],[b,yh(b)]]:[[xb,t],[xb,yt],[b,t]]);
+    } else holes.push([[xf,t],[xb,t],[xb,yt]]);
+  }
+  const area=pts=>{let a=0;for(let i=0;i<pts.length;i++){const[p0,p1]=[pts[i],pts[(i+1)%pts.length]];a+=p0[0]*p1[1]-p1[0]*p0[1];}return Math.abs(a)/2;};
+  const netArea=area(outer)-holes.reduce((m,h)=>m+area(h),0);
+  const xs=outer.map(q=>q[0]), ys=outer.map(q=>q[1]);
+  const bb={x0:Math.min(...xs),x1:Math.max(...xs),y0:0,y1:Math.max(...ys)};
+  return {outer,holes,H,L1,u,n,th,netArea,bb,supportLen:D/c-p.lipT,solid:holes.length===0};
+}
+
+/* ---------- three.js scene ---------- */
+const view=$('view');
+const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+view.appendChild(renderer.domElement);
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(35,1,1,6000);
+const controls=new THREE.OrbitControls(camera,renderer.domElement);
+controls.enableDamping=true; controls.dampingFactor=0.12;
+scene.add(new THREE.HemisphereLight(0xffffff,0x667770,0.75));
+const sun=new THREE.DirectionalLight(0xffffff,0.75); sun.position.set(-300,600,400); scene.add(sun);
+const fill=new THREE.DirectionalLight(0xffffff,0.25); fill.position.set(400,200,-300); scene.add(fill);
+
+const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const standMat=new THREE.MeshStandardMaterial({roughness:0.55,metalness:0.0});
+const edgeMat=new THREE.LineBasicMaterial({transparent:true,opacity:0.35});
+const laptopMat=new THREE.MeshStandardMaterial({roughness:0.4,metalness:0.2,transparent:true,opacity:0.38,depthWrite:false});
+let grid=null, group=new THREE.Group(), laptop=null, firstFrame=true;
+scene.add(group);
+
+function applyTheme(){
+  standMat.color.set(css('--accent'));
+  edgeMat.color.set(css('--ink'));
+  laptopMat.color.set(css('--laptop'));
+  if(grid){scene.remove(grid);grid.geometry.dispose();}
+  grid=new THREE.GridHelper(900,45,css('--muted'),css('--line'));
+  grid.position.set(P.depth/2,0,0); scene.add(grid);
+}
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',applyTheme);
+new MutationObserver(applyTheme).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+
+/* ---------- theme toggle: auto → light → dark ---------- */
+const THEMES=['auto','light','dark'], THEME_LABEL={auto:'Auto',light:'Light',dark:'Dark'};
+function currentTheme(){return document.documentElement.dataset.theme||'auto';}
+function setTheme(t){
+  if(t==='auto') delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme=t;
+  try{localStorage.setItem('theme',t);}catch(e){}
+  $('vTheme').textContent='Theme: '+THEME_LABEL[t];
+  $('vTheme').setAttribute('aria-label','Theme: '+THEME_LABEL[t]+'. Click to change.');
+}
+$('vTheme').onclick=()=>setTheme(THEMES[(THEMES.indexOf(currentTheme())+1)%THEMES.length]);
+setTheme(currentTheme());
+
+function makeShape(pr){
+  const sh=new THREE.Shape(pr.outer.map(q=>new THREE.Vector2(q[0],q[1])));
+  pr.holes.forEach(h=>sh.holes.push(new THREE.Path(h.map(q=>new THREE.Vector2(q[0],q[1])))));
+  return sh;
+}
+// Preview spacing between the pieces' inner faces: outer faces sit ~50 mm in from each side of the laptop.
+const pieceGap=()=>Math.max(80,P.lapW-2*P.width-100);
+function rebuild(pr){
+  group.children.slice().forEach(o=>{group.remove(o);o.geometry&&o.geometry.dispose();});
+  const geo=new THREE.ExtrudeGeometry(makeShape(pr),{depth:P.width,bevelEnabled:false});
+  const edges=new THREE.EdgesGeometry(geo,20);
+  const gap=pieceGap();
+  [-gap/2-P.width, gap/2].forEach(z=>{
+    const m=new THREE.Mesh(geo,standMat); m.position.z=z; group.add(m);
+    const e=new THREE.LineSegments(edges,edgeMat); e.position.z=z; group.add(e);
+  });
+  // laptop ghost at its real size, front edge against the lip
+  const len=P.lapD, thick=P.lapT, wid=P.lapW;
+  const lg=new THREE.BoxGeometry(len,thick,wid);
+  laptop=new THREE.Mesh(lg,laptopMat);
+  laptop.position.set(pr.L1[0]+pr.u[0]*len/2+pr.n[0]*thick/2, pr.L1[1]+pr.u[1]*len/2+pr.n[1]*thick/2, 0);
+  laptop.rotation.z=pr.th; laptop.visible=P.showLaptop; group.add(laptop);
+  if(grid) grid.position.x=P.depth/2;
+  return geo;
+}
+let lastView='34';
+function setView(kind){
+  // Frame a sphere around stand + laptop, using whichever field of view (vertical or horizontal) is narrower.
+  const tx=P.depth/2, ty=40, R=0.5*Math.hypot(Math.max(P.lapD,P.depth),P.lapW,120);
+  const vf=camera.fov*Math.PI/180, hf=2*Math.atan(Math.tan(vf/2)*camera.aspect);
+  const dist=R/Math.sin(Math.min(vf,hf)/2)*0.92;
+  const dir=new THREE.Vector3(...(kind==='side'?[0,20,700]:[-380,260,430])).normalize();
+  controls.target.set(tx,ty,0);
+  camera.position.set(tx+dir.x*dist,ty+dir.y*dist,dir.z*dist);
+  lastView=kind;
+  controls.update();
+}
+$('vSide').onclick=()=>setView('side'); $('v34').onclick=()=>setView('34');
+
+function resize(){
+  const w=view.clientWidth,h=view.clientHeight; if(!w||!h)return;
+  renderer.setSize(w,h,false); renderer.domElement.style.width=w+'px'; renderer.domElement.style.height=h+'px';
+  camera.aspect=w/h; camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(view);
+(function loop(){controls.update();renderer.render(scene,camera);requestAnimationFrame(loop);})();
+
+/* ---------- update ---------- */
+let current=null, currentGeo=null;
+function update(){
+  current=profile(P);
+  currentGeo=rebuild(current);
+  const bb=current.bb, w=bb.x1-bb.x0, h=bb.y1-bb.y0;
+  const volCm3=current.netArea*P.width/1000*P.count;
+  const rows=[
+    ['Rear height',f1(current.H)+' mm'],
+    ['Laptop surface',f1(current.supportLen)+' mm'],
+    ['Supported',Math.round(Math.min(1,current.supportLen/P.lapD)*100)+'%'],
+    ['Piece footprint',`${f1(w)} × ${f1(h)} × ${P.width}`],
+    ['Solid volume',f1(volCm3)+' cm³'],
+    ['PLA at 100%',f1(volCm3*1.24)+' g'],
+  ];
+  $('readout').innerHTML=rows.map(r=>`<dt>${r[0]}</dt><dd>${r[1]}</dd>`).join('');
+  const warns=[];
+  if(current.solid) warns.push('Struts are too thick for this size to leave an opening, so each piece will be solid.');
+  if(current.supportLen<0.55*P.lapD) warns.push('Less than about half the laptop is supported, so it could tip backwards. Increase base depth.');
+  if(P.lipH>P.lapT-1) warns.push('The lip is about as tall as the laptop’s front edge and will press on the palm rest. Lower the lip.');
+  if(Math.max(w,h)>BED) warns.push(`Each piece is ${f1(Math.max(w,h))} mm long. Check it fits your bed, or print it diagonally.`);
+  if(P.count===2 && h*2+10>BED) warns.push('Two pieces side by side may not fit a 250 mm bed. Export one piece and print twice.');
+  $('warn').hidden=!warns.length; $('warn').textContent=warns.join(' ');
+  if(firstFrame){applyTheme();setView('34');firstFrame=false;}
+  $('status').textContent='';
+}
+
+/* ---------- STL + ZIP export ---------- */
+function stlBinary(geo,offsets){
+  const g=geo.index?geo.toNonIndexed():geo, pos=g.attributes.position.array, nt=pos.length/9;
+  const buf=new ArrayBuffer(84+50*nt*offsets.length), dv=new DataView(buf);
+  const hdr='laptop stand '+P.angle+'deg'; for(let i=0;i<hdr.length&&i<80;i++)dv.setUint8(i,hdr.charCodeAt(i));
+  dv.setUint32(80,nt*offsets.length,true);
+  let o=84;
+  for(const off of offsets){
+    for(let i=0;i<pos.length;i+=9){
+      const a=[pos[i]+off[0],pos[i+1]+off[1],pos[i+2]+off[2]],b=[pos[i+3]+off[0],pos[i+4]+off[1],pos[i+5]+off[2]],c=[pos[i+6]+off[0],pos[i+7]+off[1],pos[i+8]+off[2]];
+      const ux=b[0]-a[0],uy=b[1]-a[1],uz=b[2]-a[2],vx=c[0]-a[0],vy=c[1]-a[1],vz=c[2]-a[2];
+      let nx=uy*vz-uz*vy,ny=uz*vx-ux*vz,nz=ux*vy-uy*vx;const l=Math.hypot(nx,ny,nz)||1;
+      [nx/l,ny/l,nz/l,...a,...b,...c].forEach((v,j)=>dv.setFloat32(o+j*4,v,true));
+      dv.setUint16(o+48,0,true); o+=50;
+    }
+  }
+  return new Uint8Array(buf);
+}
+const CRC=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0;}return t;})();
+function crc32(d){let c=0xFFFFFFFF;for(let i=0;i<d.length;i++)c=CRC[(c^d[i])&255]^(c>>>8);return (c^0xFFFFFFFF)>>>0;}
+function zipOne(name,data){
+  const nm=new TextEncoder().encode(name), crc=crc32(data), now=new Date();
+  const time=(now.getHours()<<11)|(now.getMinutes()<<5)|(now.getSeconds()>>1);
+  const date=((now.getFullYear()-1980)<<9)|((now.getMonth()+1)<<5)|now.getDate();
+  const lh=new DataView(new ArrayBuffer(30)), ch=new DataView(new ArrayBuffer(46)), ed=new DataView(new ArrayBuffer(22));
+  lh.setUint32(0,0x04034b50,true);lh.setUint16(4,20,true);lh.setUint16(10,time,true);lh.setUint16(12,date,true);
+  lh.setUint32(14,crc,true);lh.setUint32(18,data.length,true);lh.setUint32(22,data.length,true);lh.setUint16(26,nm.length,true);
+  ch.setUint32(0,0x02014b50,true);ch.setUint16(4,20,true);ch.setUint16(6,20,true);ch.setUint16(12,time,true);ch.setUint16(14,date,true);
+  ch.setUint32(16,crc,true);ch.setUint32(20,data.length,true);ch.setUint32(24,data.length,true);ch.setUint16(28,nm.length,true);
+  const cdOff=30+nm.length+data.length, cdSize=46+nm.length;
+  ed.setUint32(0,0x06054b50,true);ed.setUint16(8,1,true);ed.setUint16(10,1,true);ed.setUint32(12,cdSize,true);ed.setUint32(16,cdOff,true);
+  return new Blob([lh.buffer,nm,data,ch.buffer,nm,ed.buffer]);
+}
+function baseName(){return `laptop-stand_${P.angle}deg_${P.depth}x${P.width}_strut${P.strut}`;}
+
+// Use the host's download capability when embedded as a Claude artifact; otherwise a plain browser download.
+const dlPromise = (window.claude && window.claude.use) ? window.claude.use('downloads').catch(()=>null) : Promise.resolve(null);
+function browserSave(filename,blob){
+  const url=URL.createObjectURL(blob), a=document.createElement('a');
+  a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+$('dl').addEventListener('click',async()=>{
+  const btn=$('dl'); btn.disabled=true; $('status').textContent='Preparing file…';
+  try{
+    const h=current.bb.y1+10, offs=[];
+    for(let i=0;i<P.count;i++) offs.push([-current.bb.x0, i*h, 0]); // Z-up: profile lies flat on the bed
+    const stl=stlBinary(currentGeo,offs);
+    const zip=zipOne(baseName()+'.stl',stl), filename=baseName()+'.zip';
+    const dl=await dlPromise;
+    if(!dl){browserSave(filename,zip);$('status').textContent='Downloaded. Unzip to get the STL.';return;}
+    const res=await dl.save({filename,data:zip});
+    $('status').textContent=res.status==='saved'?'Saved. Unzip to get the STL.':'';
+  }catch(e){
+    const c=e&&e.code;
+    $('status').textContent=c==='declined'?'Download cancelled.':c==='rate_limited'?'A download prompt is already open.':'Couldn’t save the file here. Try “Copy as OpenSCAD” instead.';
+  }finally{btn.disabled=false;}
+});
+
+function scadText(){
+  const pr=current, pts=[...pr.outer,...pr.holes.flat()].map(q=>`[${q[0].toFixed(3)},${q[1].toFixed(3)}]`);
+  const paths=[]; let i=0;
+  paths.push(pr.outer.map(()=>i++));
+  pr.holes.forEach(h=>paths.push(h.map(()=>i++)));
+  return `// Laptop stand side piece — generated by Laptop Stand Maker
+// angle=${P.angle}deg depth=${P.depth} strut=${P.strut} width=${P.width} lipH=${P.lipH} lipT=${P.lipT} brace=${P.brace}
+// laptop: ${$('preset').value==='custom'?'custom':$('preset').selectedOptions[0].text} ${P.lapD}×${P.lapW}×${P.lapT} mm
+count = ${P.count};
+width = ${P.width};
+pitch = ${(pr.bb.y1+10).toFixed(2)};
+pts = [${pts.join(',')}];
+paths = [${paths.map(p=>'['+p.join(',')+']').join(',')}];
+for (k = [0:count-1]) translate([${(-pr.bb.x0).toFixed(3)}, k*pitch, 0])
+  linear_extrude(height = width) polygon(points = pts, paths = paths);
+`;
+}
+$('scad').addEventListener('click',()=>{
+  const txt=scadText();
+  navigator.clipboard.writeText(txt).then(()=>{$('status').textContent='OpenSCAD script copied.';})
+  .catch(()=>{
+    const ta=document.createElement('textarea');ta.value=txt;ta.style.cssText='width:100%;height:140px;font:11px var(--mono)';
+    $('status').textContent='Copy blocked. Select the script below:';$('status').after(ta);ta.select();
+  });
+});
+
+resize(); update();
+</script>
+
+</body></html>
